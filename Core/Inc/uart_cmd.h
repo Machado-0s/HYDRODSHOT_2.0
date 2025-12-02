@@ -28,8 +28,6 @@ extern volatile float pid_target_speed_rpms[MOTORS_COUNT];
 extern uint8_t uart_rx_buffer[UART_RX_BUFFER_SIZE];
 extern volatile uint16_t uart_rx_write_pos;
 extern volatile bool uart_new_data_available;
-extern volatile float received_numeric_value;
-
 
 void UART_CMD_Init(UART_HandleTypeDef *huart);
 void process_uart_command(void);

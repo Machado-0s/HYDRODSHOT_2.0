@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart_cmd.h"
+#include "uart_1_cmd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,6 +68,7 @@ extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -89,7 +91,20 @@ void NMI_Handler(void)
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
+/**
+  * @brief This function handles Hard fault interrupt.
+  */
+void HardFault_Handler(void)
+{
+  /* USER CODE BEGIN HardFault_IRQn 0 */
 
+  /* USER CODE END HardFault_IRQn 0 */
+  while (1)
+  {
+    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+    /* USER CODE END W1_HardFault_IRQn 0 */
+  }
+}
 
 /**
   * @brief This function handles Memory management fault.
@@ -226,21 +241,6 @@ void DMA1_Stream6_IRQHandler(void)
 
 
 /**
-  * @brief This function handles USART2 global interrupt.
-  */
-void USART1_IRQHandler(void)
-{
-  /* USER CODE BEGIN USART2_IRQn 0 */
-
-  /* USER CODE END USART2_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART2_IRQn 1 */
-
-  /* USER CODE END USART2_IRQn 1 */
-}
-
-
-/**
   * @brief This function handles DMA2 stream2 global interrupt.
   */
 void DMA2_Stream2_IRQHandler(void)
@@ -253,8 +253,6 @@ void DMA2_Stream2_IRQHandler(void)
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
 }
-
-
 
 /**
   * @brief This function handles DMA2 stream7 global interrupt.
@@ -283,6 +281,20 @@ void USART2_IRQHandler(void)
   }
 
   HAL_UART_IRQHandler(&huart2);
+}
+
+void USART1_IRQHandler(void)
+{
+  if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET) {
+    __HAL_UART_CLEAR_IDLEFLAG(&huart1);
+
+    uint16_t dma_remaining_bytes = __HAL_DMA_GET_COUNTER(huart1.hdmarx);
+    uart_1_rx_write_pos = UART_1_RX_BUFFER_SIZE - dma_remaining_bytes;
+
+    uart_1_new_data_available = true;
+  }
+
+  HAL_UART_IRQHandler(&huart1);
 }
 
 /* USER CODE END 1 */

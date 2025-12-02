@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dma.h"
 #include "tim.h"
 #include "usart.h"
@@ -31,6 +32,8 @@
 #include "uart_cmd.h"
 #include "pwm.h"
 #include "dshot_A.h"
+#include "uart_1_cmd.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -83,9 +86,33 @@ extern UART_HandleTypeDef huart1;
 volatile uint8_t dshot_send_flag = 0;
 volatile bool uart_tx_ready = true; // TX flag
 
-float value = 100.0;
+float value = -100.0;
 uint16_t pwm_targets[4] = {1500, 1500, 1500, 1500};
 volatile float pid_target_speed_rpms[MOTORS_COUNT] = {0};
+
+uint8_t pinState = 0;
+float Adc1 =0;
+float Adc2 =0;
+
+void quick_battery_read(void){
+    // Read PA0
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    uint16_t bat1 = HAL_ADC_GetValue(&hadc1);
+
+    // Read PA2
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    uint16_t bat2 = HAL_ADC_GetValue(&hadc1);
+
+    Adc1 = ((bat1 * 3.3f) / 4095.0f)*11;
+    Adc2 = ((bat2 * 3.3f)/ 4095.0f)*11;
+
+    Debug_Send_DMA("PA0: %d (%.2fV), PA2: %d (%.2fV)\n",
+           bat1, Adc1,
+           bat2,Adc2);
+}
+
 
 /* USER CODE END 0 */
 
@@ -126,15 +153,16 @@ int main(void)
   MX_TIM12_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   UART_CMD_Init(&huart2);
+  UART_1_CMD_Init(&huart1);
   PWM_Init();
 
   setup_Dshot_Tx_Only();
   preset_bb_Dshot_buffers();
   pid_reset_all();
 
-     //DWT_Delay(100);
 
    // Initialize all motor target RPMs to 0.0 (stop)
        for (int i = 0; i < MOTORS_COUNT; i++) {
@@ -145,7 +173,7 @@ int main(void)
               motor_values[i] = prepare_Dshot_package(0, false); // Send 0 throttle (disarmed)
           }
 
-     // Send this 0 throttle for 200ms
+
      uint32_t calibration_start_time = HAL_GetTick();
      while (HAL_GetTick() - calibration_start_time < 2000) {
          update_motors_Tx_Only();
@@ -155,10 +183,9 @@ int main(void)
      }
 
 
-    // HAL_Delay(260);
 
      for (int i = 0; i < MOTORS_COUNT; i++) {
-   	  motor_values[i] = prepare_Dshot_package(10, false); //11
+   	  motor_values[i] = prepare_Dshot_package(10, false);
         }
 
       for (int t = 0; t < 6; t++){
@@ -179,7 +206,8 @@ int main(void)
 
       HAL_Delay(40);
 
- // Debug_Send_DMA("--- STM32 DShot Controller Started ---\r\n");
+      Debug_Send_DMA("--- STM32 DShot Controller Started -UART2---\r\n");
+      Debug_Send_DMA_1("--- STM32 DShot Controller Started -UART1 ---\r\n");
 
 
 
@@ -187,10 +215,17 @@ int main(void)
       uint32_t last_50hz_time = 0;
       uint32_t last_100hz_time = 0;
       uint32_t now2 = HAL_GetTick();
+      uint32_t adcCheck = 0;
+      uint32_t nowAdc = HAL_GetTick();
 
 
-    // uint32_t check = 0;
-    // uint32_t now1 = HAL_GetTick();
+      uint16_t count = 0;
+      uint16_t err = 0;
+
+
+     // Configure PC13, PC14 as output
+     GPIOC->MODER |= GPIO_MODER_MODER13_0;  // Output mode
+     GPIOC->MODER |= GPIO_MODER_MODER14_0;  // Output mode
 
 
   /* USER CODE END 2 */
@@ -200,60 +235,60 @@ int main(void)
   while (1)
   {
 
+	  // Read pin state of KILLSWITCH
+	  pinState = (GPIOA->IDR & GPIO_PIN_3) ? 1 : 0;
 
-	  if (uart_new_data_available) {
+	  nowAdc = HAL_GetTick();
+	  if(nowAdc-adcCheck >= 1000){
+
+	  quick_battery_read();
+
+	  }
+
+	  if (uart_new_data_available){
 
 	      process_uart_command();
+	  }else if(uart_1_new_data_available){
+		  process_uart_1_command();
 	  }
 
 
 	  if (telemetry_done_flag) {
 
+         process_telemetry_with_new_method();
 
-
-	      // --- Step 1: Decode and store telemetry results ---
-	      process_telemetry_with_new_method();
-
-	      // --- Step 2: Run PID for each motor using measured dt ---
 	      for (int m = 0; m < MOTORS_COUNT; m++) {
 
 	          uint32_t current_rpm = 0;
 	          float target_rpm = pid_target_speed_rpms[m];
 
-	          // Use telemetry if valid, else conservative fallback
 	          if (motor_telemetry_data[m].valid_rpm) {
 	              current_rpm = motor_telemetry_data[m].raw_rpm_value;
-	          } else {
+	              } else {
 	              current_rpm = 0; // ESC didn't respond
 	          }
-	         // Debug_Send_DMA("v: %d %d %.2f \r\n", m, current_rpm,target_rpm);
-	          // Compute PID output — pass dt into your modified PID function
+
 	          float dt = 0.005f;  // 5 ms control loop
 	          uint16_t new_command = pid_calculate_command(m, current_rpm, target_rpm,dt);
-	         // Debug_Send_DMA("hello");
 
-	          // Always encode as valid DShot frame
 	          motor_values[m] = prepare_Dshot_package(new_command, true);
 	      }
 
-	      // --- Step 3: Transmit new DShot commands ---
-	      //for (volatile int i = 0; i < 100; i++);   // short delay
-	      update_motors_Tx_Only();
-	  }
 
-	  /*
-	  now1 = HAL_GetTick();
-	  if (now1 - check >= 2000) {
-	      Debug_Send_DMA(
-	          "M%d err=%.1f T: %.0f OUT=%d\r\n",
-	          pid_debug.motor_index,
-	          pid_debug.error,
-	          pid_debug.target,
-	          pid_debug.output
-	      );
-	      check = now1;
+	      update_motors_Tx_Only();
+	      GPIOC->ODR |= GPIO_ODR_OD13;
+	      GPIOC->ODR &= ~GPIO_ODR_OD14;
+
+               err=0;
+	      }else{
+
+		  if(err>1000){
+	           GPIOC->ODR &= ~GPIO_ODR_OD13;
+	           GPIOC->ODR |= GPIO_ODR_OD14;
+
+	        }
+		  err++;
 	  }
-*/
 
 
 	  	      // ---- SERVO PWM UPDATE - Different frequencies
@@ -261,8 +296,14 @@ int main(void)
 
 	  	      // Update 50Hz PWM motors every 20ms
 	  	      if (now2 - last_50hz_time >= 20) {
+	  	    	  if(count==0){
+	  	    		PWM_SetDuty(&htim9, TIM_CHANNEL_1, 1000); // PE5
+	  	    	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, 1000); // PE6
+	  	    	    count++;
+	  	    	  }else{
 	  	    	  PWM_SetDuty(&htim9, TIM_CHANNEL_1, pwm_targets[0]); // PE5
 	  	    	  PWM_SetDuty(&htim9, TIM_CHANNEL_2, pwm_targets[1]); // PE6
+	  	    	  }
 	  	    	  last_50hz_time = now2;
 	  	      }
 
@@ -279,6 +320,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }
@@ -336,6 +378,12 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
         // CRITICAL: Clear the consistent busy flag when DMA is complete
         uart_tx_busy = false;
     }
+
+    if (huart->Instance == USART1)
+        {
+            // CRITICAL: Clear the consistent busy flag when DMA is complete
+            uart_1_tx_busy = false;
+        }
 }
 /* USER CODE END 4 */
 

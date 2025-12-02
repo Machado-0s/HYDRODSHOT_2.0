@@ -16,7 +16,7 @@ void PWM_Init(void)
     HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_2); // PE6
     HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1); // PE5
 
-     //Start 100Hz PWM channels (TIM3)
+     //Start 100Hz PWM channels (TIM12)
       HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1); // e.g., PB14- 100Hz
       HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_2); // e.g., PB15- 100Hz
 }

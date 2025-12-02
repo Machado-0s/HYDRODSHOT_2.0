@@ -462,11 +462,7 @@ uint16_t pid_calculate_command(uint8_t motor_index,
         count = 1; // forward
     }
 
-    // --- REVISED: Telemetry Glitch Handling ---
-    /*
-     * Only substitute current_rpm if we are actively commanding a non-zero speed
-     * and the current reading is zero, AND we have a valid history.
-     */
+
     if (fabsf(target_rpm) > 0.0f) {
         if (current_rpm_unsigned == 0 && pid_states[motor_index].last_valid_rpm > 0.0f) {
             // Glitch detected: use last known good RPM
@@ -478,8 +474,6 @@ uint16_t pid_calculate_command(uint8_t motor_index,
             pid_states[motor_index].last_valid_rpm = current_rpm;
         }
     }
-    // --- END REVISED TELEMETRY ---
-
 
     // --- Compute error ---
     float error = target_rpm - current_rpm;
@@ -529,7 +523,7 @@ uint16_t pid_calculate_command(uint8_t motor_index,
         return 0;
     }
 
-    // --- Directional Clamping FIX ---
+
     // This section prevents the forward throttle from dropping into the reverse range.
     if(count == 1) {
         // FORWARD: Must not drop below DSHOT_NEUTRAL

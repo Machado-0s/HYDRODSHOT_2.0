@@ -52,6 +52,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 SAUVC_T1_T8.list \
 
+OBJCOPY_HEX += \
+SAUVC_T1_T8.hex \
+
 
 # All Target
 all: main-build
@@ -75,12 +78,17 @@ SAUVC_T1_T8.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+SAUVC_T1_T8.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O ihex $(EXECUTABLES) "SAUVC_T1_T8.hex"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) SAUVC_T1_T8.elf SAUVC_T1_T8.list SAUVC_T1_T8.map default.size.stdout
+	-$(RM) SAUVC_T1_T8.elf SAUVC_T1_T8.hex SAUVC_T1_T8.list SAUVC_T1_T8.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
