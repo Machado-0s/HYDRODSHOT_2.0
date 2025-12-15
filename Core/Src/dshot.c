@@ -295,7 +295,7 @@ void setup_Dshot_Tx_Only(void)
 }
 
 
-// --- GCR/Telemetry Functions (Kept as is) ---
+
 #define iv 0xFFFFFFFF
 static const uint32_t GCR_table[32] = {
     iv, iv, iv, iv, iv, iv, iv, iv, iv, 9, 10, 11, iv, 13, 14, 15,
@@ -367,8 +367,6 @@ void read_BDshot_response(uint32_t value, uint8_t motor){
     if (value < 0xFFFFFFF) {
         value = (value ^ (value >> 1));
 
-        //Debug_Send_DMA("v: %d", value);
-
         uint32_t nibble1 = (value & 0x1F);
         uint32_t nibble2 = ((value >> 5) & 0x1F);
         uint32_t nibble3 = ((value >> 10) & 0x1F);
@@ -390,7 +388,7 @@ void read_BDshot_response(uint32_t value, uint8_t motor){
             motor_telemetry_data[motor].valid_rpm = true;
             motor_telemetry_data[motor].raw_rpm_value = ((decoded_value & 0x1FF0) >> 4) << (decoded_value >> 13);
             motor_telemetry_data[motor].raw_rpm_value = 60 * 1000000 / motor_telemetry_data[motor].raw_rpm_value * 2 / MOTOR_POLES_NUMBER;
-            //Debug_Send_DMA("v: %d\r\n", motor_telemetry_data[motor].raw_rpm_value);
+
         } else {
             motor_telemetry_data[motor].valid_rpm = false;
         }
@@ -410,11 +408,6 @@ void process_telemetry_with_new_method(void) {
     telemetry_done_flag = 0;
 }
 
-uint16_t get_rpm_from_telemetry(uint16_t raw_value) {
-    if (raw_value == 0) return 0;
-    uint16_t rpm_x10 = (raw_value >> 4);
-    return (uint16_t)(((float)rpm_x10 / MOTOR_POLES_NUMBER) * 12);
-}
 
 void pid_reset_all(void)
 {
@@ -465,20 +458,20 @@ uint16_t pid_calculate_command(uint8_t motor_index,
 
     if (fabsf(target_rpm) > 0.0f) {
         if (current_rpm_unsigned == 0 && pid_states[motor_index].last_valid_rpm > 0.0f) {
-            // Glitch detected: use last known good RPM
+
             current_rpm = pid_states[motor_index].last_valid_rpm;
         }
 
-        // Update last_valid_rpm if the current reading is non-zero
+
         if (current_rpm_unsigned > 0) {
             pid_states[motor_index].last_valid_rpm = current_rpm;
         }
     }
 
-    // --- Compute error ---
+
     float error = target_rpm - current_rpm;
 
-    // --- PID Terms ---
+
     float p_term = PID_KP * error;
 
     // Integral: per motor
@@ -490,7 +483,7 @@ uint16_t pid_calculate_command(uint8_t motor_index,
         pid_states[motor_index].i_term *= 0.95f;
     }
 
-    // Derivative (filtered)
+
     float error_derivative = error - pid_states[motor_index].last_error;
     pid_states[motor_index].last_error = error;
     pid_states[motor_index].filtered_error = 0.4f * error_derivative + 0.6f * pid_states[motor_index].filtered_error;
@@ -498,17 +491,17 @@ uint16_t pid_calculate_command(uint8_t motor_index,
 
     float pid_output = p_term + pid_states[motor_index].i_term + d_term;
 
-    // Feedforward + scaling
+
     float ff_from_target = fabsf(target_rpm) * 0.15f;
     float pid_correction = pid_output * 0.15f;
     float throttle_value = ff_from_target + pid_correction;
 
-    // --- Map to DShot ---
+
     const float DSHOT_NEUTRAL = 1048.0f; // Minimum DShot value for forward thrust
     const float DSHOT_MIN = 48.0f;       // Minimum DShot value for reverse thrust/idle
     const float DSHOT_MAX = 2047.0f;
 
-    float dshot_f = 0; // Initialize to 0 for safety
+    float dshot_f = 0;
 
     if(count == 1) {
         dshot_f = DSHOT_NEUTRAL + throttle_value; // forward
@@ -526,16 +519,16 @@ uint16_t pid_calculate_command(uint8_t motor_index,
 
     // This section prevents the forward throttle from dropping into the reverse range.
     if(count == 1) {
-        // FORWARD: Must not drop below DSHOT_NEUTRAL
+
         if(dshot_f < DSHOT_NEUTRAL) dshot_f = DSHOT_NEUTRAL;
     } else if (count == 2) {
-        // REVERSE: Must not drop below DSHOT_MIN
+
         if(dshot_f < DSHOT_MIN) dshot_f = DSHOT_MIN;
     }
 
-    // Universal MAX clamp
+
     if(dshot_f > DSHOT_MAX) dshot_f = DSHOT_MAX;
-    // --- END Directional Clamping FIX ---
+
 
     uint16_t dshot_command = (uint16_t)(dshot_f + 0.5f);
     pid_states[motor_index].last_dshot_command = dshot_command;

@@ -11,8 +11,7 @@
 ../Core/Src/dshot.c:304:10:get_BDshot_response	40	static
 ../Core/Src/dshot.c:359:6:BDshot_check_checksum	24	static
 ../Core/Src/dshot.c:366:6:read_BDshot_response	40	static
-../Core/Src/dshot.c:402:6:process_telemetry_with_new_method	8	static
-../Core/Src/dshot.c:413:10:get_rpm_from_telemetry	24	static
-../Core/Src/dshot.c:419:6:pid_reset_all	16	static
-../Core/Src/dshot.c:429:6:pid_reset_motor	16	static
-../Core/Src/dshot.c:446:10:pid_calculate_command	88	static
+../Core/Src/dshot.c:400:6:process_telemetry_with_new_method	8	static
+../Core/Src/dshot.c:412:6:pid_reset_all	16	static
+../Core/Src/dshot.c:422:6:pid_reset_motor	16	static
+../Core/Src/dshot.c:439:10:pid_calculate_command	88	static

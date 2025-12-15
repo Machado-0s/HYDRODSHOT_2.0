@@ -1,0 +1,6 @@
+../Core/Src/byteProtocol.c:52:6:Debug_Print	16	static
+../Core/Src/byteProtocol.c:69:13:init_rpm_lookup	16	static
+../Core/Src/byteProtocol.c:84:13:process_complete_packet_from_buffer	40	static
+../Core/Src/byteProtocol.c:123:6:ByteProtocol_Init	8	static
+../Core/Src/byteProtocol.c:142:6:ByteProtocol_IdleLineCallback	64	static
+../Core/Src/byteProtocol.c:240:6:HAL_UART_ErrorCallback	16	static

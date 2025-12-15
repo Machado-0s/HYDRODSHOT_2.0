@@ -1,0 +1,9 @@
+../Core/Src/status_tx.c:29:6:StatusTx_Init	16	static
+../Core/Src/status_tx.c:46:6:StatusTx_UpdateAll	32	static
+../Core/Src/status_tx.c:69:6:StatusTx_SetBattery1	24	static
+../Core/Src/status_tx.c:76:6:StatusTx_SetBattery2	24	static
+../Core/Src/status_tx.c:83:6:StatusTx_SetKillswitch	16	static
+../Core/Src/status_tx.c:88:6:StatusTx_SetErrorFlag	16	static
+../Core/Src/status_tx.c:93:6:StatusTx_ClearErrorFlag	16	static
+../Core/Src/status_tx.c:98:6:StatusTx_SetSystemStatus	16	static
+../Core/Src/status_tx.c:106:6:StatusTx_SendPacket	8	static

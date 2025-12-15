@@ -23,7 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart_cmd.h"
-#include "uart_1_cmd.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,7 +68,6 @@ extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
-
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -239,6 +238,22 @@ void DMA1_Stream6_IRQHandler(void)
   /* USER CODE END DMA1_Stream6_IRQn 1 */
 }
 
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
+}
+
+
+
 
 /**
   * @brief This function handles DMA2 stream2 global interrupt.
@@ -275,26 +290,12 @@ void USART2_IRQHandler(void)
     __HAL_UART_CLEAR_IDLEFLAG(&huart2);
 
     uint16_t dma_remaining_bytes = __HAL_DMA_GET_COUNTER(huart2.hdmarx);
-    uart_rx_write_pos = UART_RX_BUFFER_SIZE - dma_remaining_bytes;
+    uart_rx2_write_pos = UART_RX2_BUFFER_SIZE - dma_remaining_bytes;
 
     uart_new_data_available = true;
   }
 
   HAL_UART_IRQHandler(&huart2);
-}
-
-void USART1_IRQHandler(void)
-{
-  if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET) {
-    __HAL_UART_CLEAR_IDLEFLAG(&huart1);
-
-    uint16_t dma_remaining_bytes = __HAL_DMA_GET_COUNTER(huart1.hdmarx);
-    uart_1_rx_write_pos = UART_1_RX_BUFFER_SIZE - dma_remaining_bytes;
-
-    uart_1_new_data_available = true;
-  }
-
-  HAL_UART_IRQHandler(&huart1);
 }
 
 /* USER CODE END 1 */
