@@ -31,7 +31,7 @@ static volatile uint32_t bytes_received = 0;
 /* ==================== DEBUG ==================== */
 
 static char debug_buffer[128];
-volatile bool debug_tx_busy = false;
+
 
 /* ==================== INTERNAL ==================== */
 

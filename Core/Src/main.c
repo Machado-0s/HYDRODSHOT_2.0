@@ -33,8 +33,7 @@
 #include "pwm.h"
 #include "dshot_A.h"
 #include "byteProtocol.h"
-#include "hydrolib_ring_queue.h"
-#include "hydrolib_common.h"
+#include "byteProtocol_tx.h"
 
 /* USER CODE END Includes */
 
@@ -72,7 +71,8 @@ volatile float pid_target_speed_rpms[MOTORS_COUNT] = {0};
 uint8_t pinState = 0;
 float Adc1 =0;
 float Adc2 =0;
-
+uint16_t bat1 = 0;
+uint16_t bat2 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -116,22 +116,23 @@ void quick_battery_read(void){
     // Read PA0
     HAL_ADC_Start(&hadc1);
     HAL_ADC_PollForConversion(&hadc1, 10);
-    uint16_t bat1 = HAL_ADC_GetValue(&hadc1);
+    bat1 = HAL_ADC_GetValue(&hadc1);
 
     // Read PA2
     HAL_ADC_Start(&hadc1);
     HAL_ADC_PollForConversion(&hadc1, 10);
-    uint16_t bat2 = HAL_ADC_GetValue(&hadc1);
+    bat2 = HAL_ADC_GetValue(&hadc1);
 
     Adc1 = ((bat1 * 3.3f) / 4095.0f)*11;
     Adc2 = ((bat2 * 3.3f)/ 4095.0f)*11;
 
-    Debug_Send_DMA("PA0: %d (%.2fV), PA2: %d (%.2fV)\n",
-           bat1, Adc1,
-           bat2,Adc2);
+
 }
 
-
+void send_battery_data(void) {
+    bool killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
+    ByteProtocol_TX_SendBatteryData(bat1, bat2, killswitch_state);
+}
 /* USER CODE END 0 */
 
 /**
@@ -175,6 +176,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   UART_CMD_Init(&huart2);
   PWM_Init();
+
+  ByteProtocol_TX_Init();
+  ByteProtocol_Init();
 
   setup_Dshot_Tx_Only();
   preset_bb_Dshot_buffers();
@@ -227,9 +231,9 @@ int main(void)
 
       uint32_t last_50hz_time = 0;
       uint32_t last_100hz_time = 0;
+      uint32_t last_battery_tx_time = 0;
       uint32_t now2 = HAL_GetTick();
-      uint32_t adcCheck = 0;
-      uint32_t nowAdc = HAL_GetTick();
+
 
 
       uint16_t count = 0;
@@ -247,17 +251,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    quick_battery_read();
 
-
-	  // Read pin state of KILLSWITCH
-	  pinState = (GPIOA->IDR & GPIO_PIN_3) ? 1 : 0;
-
-	  nowAdc = HAL_GetTick();
-	  if(nowAdc-adcCheck >= 1000){
-
-	  quick_battery_read();
-
-	  }
 
 	  if (uart_new_data_available){
 
@@ -329,6 +324,11 @@ int main(void)
 
 
 	  	      }
+
+	  	    if (now2 - last_battery_tx_time >= 100) {
+	  	                send_battery_data();
+	  	                last_battery_tx_time = now2;
+	  	            }
 
     /* USER CODE END WHILE */
 

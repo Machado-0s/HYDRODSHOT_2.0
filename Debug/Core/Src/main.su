@@ -2,8 +2,9 @@
 ../Core/Src/main.c:94:6:ByteProtocol_DShotUpdateInt	16	static
 ../Core/Src/main.c:101:6:ByteProtocol_PWMUpdate	16	static
 ../Core/Src/main.c:109:6:HAL_UARTEx_RxEventCallback	16	static
-../Core/Src/main.c:115:6:quick_battery_read	48	static
-../Core/Src/main.c:141:5:main	88	static
+../Core/Src/main.c:115:6:quick_battery_read	8	static
+../Core/Src/main.c:132:6:send_battery_data	16	static
+../Core/Src/main.c:142:5:main	80	static
 ../Core/Src/main.c:345:6:SystemClock_Config	88	static
 ../Core/Src/main.c:387:6:HAL_UART_TxCpltCallback	16	static
 ../Core/Src/main.c:406:6:Error_Handler	4	static,ignoring_inline_asm
