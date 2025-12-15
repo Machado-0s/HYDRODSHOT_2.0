@@ -20,17 +20,17 @@ void ByteProtocol_TX_Init(void)
     memset(tx_buffer, 0, sizeof(tx_buffer));
 }
 
-void ByteProtocol_TX_SendBatteryData(uint16_t vbat1_adc, uint16_t vbat2_adc, bool killswitch_state)
+void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data)
 {
     if (debug_tx_busy) return;
 
     tx_buffer[0] = TX_HEADER_1;
     tx_buffer[1] = TX_HEADER_2;
-    tx_buffer[2] = vbat1_adc & 0xFF;
-    tx_buffer[3] = (vbat1_adc >> 8) & 0xFF;
-    tx_buffer[4] = vbat2_adc & 0xFF;
-    tx_buffer[5] = (vbat2_adc >> 8) & 0xFF;
-    tx_buffer[6] = killswitch_state ? 0x01 : 0x00;
+    tx_buffer[2] =data->vbat1_adc & 0xFF;
+    tx_buffer[3] =(data->vbat1_adc >> 8) & 0xFF;
+    tx_buffer[4] =data-> vbat2_adc & 0xFF;
+    tx_buffer[5] =(data->vbat2_adc >> 8) & 0xFF;
+    tx_buffer[6] =data->killswitch_state ? 0x01 : 0x00;
 
     debug_tx_busy = true;
     HAL_UART_Transmit_DMA(&huart1, tx_buffer, sizeof(tx_buffer));

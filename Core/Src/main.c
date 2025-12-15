@@ -129,9 +129,15 @@ void quick_battery_read(void){
 
 }
 
+
 void send_battery_data(void) {
-    bool killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
-    ByteProtocol_TX_SendBatteryData(bat1, bat2, killswitch_state);
+    BatteryData_t battery_data;
+
+    battery_data.vbat1_adc = bat1;
+    battery_data.vbat2_adc = bat2;
+    battery_data.killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
+
+    ByteProtocol_TX_SendBatteryData(&battery_data);
 }
 /* USER CODE END 0 */
 

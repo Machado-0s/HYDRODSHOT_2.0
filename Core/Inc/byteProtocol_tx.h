@@ -24,6 +24,5 @@ typedef struct {
 extern volatile bool debug_tx_busy;
 
 void ByteProtocol_TX_Init(void);
-void ByteProtocol_TX_SendBatteryData(uint16_t vbat1_adc, uint16_t vbat2_adc, bool killswitch_state);
-
+void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data);
 #endif // BYTEPROTOCOL_TX_H
