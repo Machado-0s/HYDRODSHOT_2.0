@@ -12,34 +12,31 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
-#define PROTOCOL_HEADER_1     0xFF
-#define PROTOCOL_HEADER_2     0xFD
+#define MAGIC_BYTE            0x00
 #define HEADER_SIZE           2
 #define TOTAL_MOTOR_COUNT     14
-#define PACKET_SIZE           (HEADER_SIZE + TOTAL_MOTOR_COUNT)
+#define DATA_SIZE             TOTAL_MOTOR_COUNT
+#define CRC_SIZE              1
+
+
+#define PACKET_SIZE           (HEADER_SIZE + DATA_SIZE + CRC_SIZE)
+#define MAX_SCAN_BYTES        256
 
 #define DSHOT_MIN_RPM        -6000
 #define DSHOT_MAX_RPM         6000
+#define RX_BUFFER_SIZE        128
 
-#define PWM_MIN_USEC          1000
-#define PWM_MAX_USEC          2000
+/* Function Prototypes */
+void ByteProtocol_Init(void);
+void ByteProtocol_IdleLineCallback(UART_HandleTypeDef *huart);
+void ByteProtocol_DShotUpdateInt(uint8_t motor_idx, int32_t rpm);
+void ByteProtocol_PWMUpdate(uint8_t pwm_idx, uint16_t pulse_us);
 
-#define PWM_MOTOR_COUNT       4
-
-#define RX_BUFFER_SIZE        64
+/* Utility Functions */
+void COBS_Decode(uint8_t *data, uint16_t length);
+uint8_t Calculate_CRC8(const uint8_t *data, uint16_t length);
+void Debug_Print(const char* format, ...);
 
 extern volatile bool debug_tx_busy;
 
-void ByteProtocol_Init(void);
-void ByteProtocol_Process(void);
-void ByteProtocol_RxCpltCallback(UART_HandleTypeDef *huart);
-void ByteProtocol_IdleLineCallback(UART_HandleTypeDef *huart);
-
-extern void ByteProtocol_DShotUpdate(uint8_t motor_idx, float rpm);
-extern void ByteProtocol_DShotUpdateInt(uint8_t motor_idx, int32_t rpm);
-extern void ByteProtocol_PWMUpdate(uint8_t pwm_idx, uint16_t pulse_us);
-
-void Debug_Print(const char* format, ...);
-
-#endif
+#endif /* BYTE_PROTOCOL_H */
