@@ -1,0 +1,3 @@
+add_subdirectory(STM32F4xx_HAL_Driver)
+add_subdirectory(Hydrolib-soft)
+add_subdirectory(Hydrodrivers)
