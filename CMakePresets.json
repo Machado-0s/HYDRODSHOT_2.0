@@ -16,6 +16,23 @@
             "name": "Debug",
             "inherits": "default",
             "cacheVariables": {
+                "CMAKE_C_FLAGS": "-DSTM32F407xx",
+                "CMAKE_CXX_FLAGS": "-DSTM32F407xx",
+                "MCU_FAMILY": "F4",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTS": "OFF",
+                "COVERAGE": "OFF",
+                "LOGGER_TYPE": "hydrolib"
+            }
+        },
+        {
+            "name": "DebugF4",
+            "inherits": "default",
+            "toolchainFile": "${sourceDir}/Drivers/Hydrodrivers/resources/gcc-arm-none-eabi-f4.cmake",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "-DSTM32F407xx",
+                "CMAKE_CXX_FLAGS": "-DSTM32F407xx",
+                "MCU_FAMILY": "F4",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "BUILD_TESTS": "OFF",
                 "COVERAGE": "OFF",

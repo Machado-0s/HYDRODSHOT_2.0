@@ -11,11 +11,8 @@ set(HYDROLIB_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 set(MCU_FAMILY F4)
 
-add_subdirectory(Drivers)
-add_subdirectory(Core)
+add_subdirectory(Drivers/Hydrodrivers)
+add_subdirectory(Drivers/STM32F4xx_HAL_Driver)
 
-add_custom_target(compdb ALL
-    COMMAND /bin/sh -c "compdb -p ${CMAKE_BINARY_DIR} list > compile_commands.json && mv compile_commands.json ${CMAKE_BINARY_DIR}/compile_commands.json"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    VERBATIM
-)
+add_subdirectory(Core/Hw)
+add_subdirectory(Core)
