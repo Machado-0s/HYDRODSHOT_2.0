@@ -15,8 +15,9 @@ add_library(core_headers
 
 add_executable(${TARGET_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/Src/main.c)
-target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/Inc)
-target_link_libraries(${TARGET_NAME} Periph core_headers)
+target_include_directories(core_headers PUBLIC ${CMAKE_CURRENT_LIST_DIR}/Inc)
+target_link_libraries(core_headers HAL_drivers)
+target_link_libraries(${TARGET_NAME} Periph core_headers )
 
 
 target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
