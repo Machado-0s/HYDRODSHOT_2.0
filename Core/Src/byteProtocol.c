@@ -22,20 +22,6 @@ static volatile uint32_t bytes_received = 0;
 
 static char debug_buffer[128];
 
-
-void COBS_Decode(uint8_t *data, uint16_t length) {
-    if (length == 0) return;
-
-    uint16_t i = 0;
-    while (i < length) {
-        uint8_t code = data[i];
-        if (code == 0 || i + code > length) break;
-
-        data[i] = MAGIC_BYTE;
-        i += code;
-    }
-}
-
 uint8_t Calculate_CRC8(const uint8_t *data, uint16_t length) {
     uint8_t crc = 0x00;
     for (uint16_t i = 0; i < length; i++) {
@@ -67,8 +53,7 @@ void Debug_Print(const char* format, ...) {
 
 static void process_complete_packet_from_buffer(uint8_t* buffer)
 {
-    COBS_Decode(&buffer[1], PACKET_SIZE - 1);
-
+    
     uint8_t received_crc = buffer[PACKET_SIZE - 1];
     uint8_t computed_crc = Calculate_CRC8(&buffer[HEADER_SIZE], DATA_SIZE);
 
