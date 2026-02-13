@@ -29,11 +29,11 @@
 #include "dshot.h"
 #include <string.h>
 #include <stdio.h>
-#include "uart_cmd.h"
 #include "pwm.h"
 #include "dshot_A.h"
 #include "byteProtocol.h"
 #include "byteProtocol_tx.h"
+
 
 /* USER CODE END Includes */
 
@@ -57,38 +57,38 @@
 
 /* USER CODE BEGIN PV */
 
-volatile uint16_t current_motor_rpms[MOTORS_COUNT];
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart1;
 
-volatile uint8_t dshot_send_flag = 0;
 volatile bool uart_tx_ready = true;
 
-float value = -100.0;
+float value = 0.0;
 uint16_t pwm_targets[4] = {1500, 1500, 1500, 1500};
 volatile float pid_target_speed_rpms[MOTORS_COUNT] = {0};
 
 uint8_t pinState = 0;
-float Adc1 =0;
-float Adc2 =0;
+uint16_t adc_buffer[2];
+volatile bool battery_data_ready = false;
 uint16_t bat1 = 0;
 uint16_t bat2 = 0;
+BatteryData_t battery_data;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-#define DWT_CYCCNT ((volatile uint32_t *)0xE0001004)
-void DWT_Delay(uint32_t microseconds) {
-    uint32_t start = *DWT_CYCCNT;
-    uint32_t cycles = microseconds * (SystemCoreClock / 1000000);
-    while((*DWT_CYCCNT - start) < cycles);
-}
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void adc_start(void) {
+
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 2);
+}
 
 
 void ByteProtocol_DShotUpdateInt(uint8_t motor_idx, int32_t rpm) {
@@ -104,40 +104,67 @@ void ByteProtocol_PWMUpdate(uint8_t pwm_idx, uint16_t pulse_us) {
     }
 }
 
-// ---------------------------------------------------------------------------
-
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-    if (huart->Instance == USART1) {
-        ByteProtocol_IdleLineCallback(huart);
-    }
-}
 
 void quick_battery_read(void){
-    // Read PA0
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, 10);
-    bat1 = HAL_ADC_GetValue(&hadc1);
-
-    // Read PA2
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, 10);
-    bat2 = HAL_ADC_GetValue(&hadc1);
-
-    Adc1 = ((bat1 * 3.3f) / 4095.0f)*11;
-    Adc2 = ((bat2 * 3.3f)/ 4095.0f)*11;
-
-
+	bat1 = adc_buffer[0];
+	bat2 = adc_buffer[1];
 }
 
 
 void send_battery_data(void) {
-    BatteryData_t battery_data;
+
 
     battery_data.vbat1_adc = bat1;
     battery_data.vbat2_adc = bat2;
-    battery_data.killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
 
     ByteProtocol_TX_SendBatteryData(&battery_data);
+}
+
+
+void calibration(void){
+
+
+    for (int i = 0; i < MOTORS_COUNT; i++) {
+        pid_target_speed_rpms[i] = value;
+    }
+
+      for (int i = 0; i < MOTORS_COUNT; i++) {
+           motor_values[i] = prepare_Dshot_package(0, false);
+       }
+
+
+  uint32_t calibration_start_time = HAL_GetTick();
+  while (HAL_GetTick() - calibration_start_time < 2000) {
+      update_motors_Tx_Only();
+
+     for (volatile int i = 0; i < 100; i++);
+
+  }
+
+
+
+  for (int i = 0; i < MOTORS_COUNT; i++) {
+	  motor_values[i] = prepare_Dshot_package(10, false);
+     }
+
+   for (int t = 0; t < 6; t++){
+   update_motors_Tx_Only();
+
+   }
+
+
+   for (int i = 0; i < MOTORS_COUNT; i++) {
+   	  motor_values[i] = prepare_Dshot_package(12, false);
+        }
+
+   for (int t = 0; t < 6; t++){
+
+   update_motors_Tx_Only();
+
+   }
+
+   HAL_Delay(40);
+
 }
 /* USER CODE END 0 */
 
@@ -158,8 +185,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -176,12 +202,11 @@ int main(void)
   MX_TIM8_Init();
   MX_TIM9_Init();
   MX_TIM12_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  UART_CMD_Init(&huart2);
   PWM_Init();
+  adc_start();
 
   ByteProtocol_TX_Init();
   ByteProtocol_Init();
@@ -189,67 +214,18 @@ int main(void)
   setup_Dshot_Tx_Only();
   preset_bb_Dshot_buffers();
   pid_reset_all();
+  calibration();
 
+  uint32_t last_50hz_time = 0;
+  uint32_t last_100hz_time = 0;
+  uint32_t last_battery_tx_time = 0;
+  uint32_t now2 = HAL_GetTick();
 
-       for (int i = 0; i < MOTORS_COUNT; i++) {
-           pid_target_speed_rpms[i] = value;
-       }
+  uint16_t count = 0;
+  uint16_t err = 0;
 
-         for (int i = 0; i < MOTORS_COUNT; i++) {
-              motor_values[i] = prepare_Dshot_package(0, false);
-          }
-
-
-     uint32_t calibration_start_time = HAL_GetTick();
-     while (HAL_GetTick() - calibration_start_time < 2000) {
-         update_motors_Tx_Only();
-
-        for (volatile int i = 0; i < 100; i++);
-
-     }
-
-
-
-     for (int i = 0; i < MOTORS_COUNT; i++) {
-   	  motor_values[i] = prepare_Dshot_package(10, false);
-        }
-
-      for (int t = 0; t < 6; t++){
-      update_motors_Tx_Only();
-
-      }
-
-
-      for (int i = 0; i < MOTORS_COUNT; i++) {
-      	  motor_values[i] = prepare_Dshot_package(12, false);
-           }
-
-      for (int t = 0; t < 6; t++){
-
-      update_motors_Tx_Only();
-
-      }
-
-      HAL_Delay(40);
-
-      Debug_Send_DMA("--- STM32 DShot Controller Started -UART2---\r\n");
-
-
-      uint32_t last_50hz_time = 0;
-      uint32_t last_100hz_time = 0;
-      uint32_t last_battery_tx_time = 0;
-      uint32_t now2 = HAL_GetTick();
-
-
-
-      uint16_t count = 0;
-      uint16_t err = 0;
-
-
-
-     GPIOC->MODER |= GPIO_MODER_MODER13_0;  // Output mode
-     GPIOC->MODER |= GPIO_MODER_MODER14_0;  // Output mode
-
+  GPIOC->MODER |= GPIO_MODER_MODER13_0;
+  GPIOC->MODER |= GPIO_MODER_MODER14_0;
 
   /* USER CODE END 2 */
 
@@ -257,12 +233,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    quick_battery_read();
+	  battery_data.killswitch_state =  (GPIOA->IDR & GPIO_PIN_3) ? true : false;
+
+	  if(pinState == 0 && battery_data.killswitch_state ==1 ){
+		 HAL_Delay(200);
+		 calibration();
+		 pinState = battery_data.killswitch_state;
+	  }
 
 
-	  if (uart_new_data_available){
 
-	      process_uart_command();
+	if(battery_data_ready){
+
+         quick_battery_read();
+         battery_data_ready = false;
+
 	  }
 
 
@@ -274,6 +259,7 @@ int main(void)
 
 	          uint32_t current_rpm = 0;
 	          float target_rpm = pid_target_speed_rpms[m];
+
 
 	          if (motor_telemetry_data[m].valid_rpm) {
 	              current_rpm = motor_telemetry_data[m].raw_rpm_value;
@@ -304,37 +290,36 @@ int main(void)
 	  }
 
 
+ now2 = HAL_GetTick();
 
-	  	      now2 = HAL_GetTick();
+	if (now2 - last_50hz_time >= 20) {
+	  	  if(count==0){
 
+	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_1, 1000); // PE5
+	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, 1000); // PE6
+	  	    count++;
 
-	  	      if (now2 - last_50hz_time >= 20) {
-	  	    	  if(count==0){
-
-	  	    		PWM_SetDuty(&htim9, TIM_CHANNEL_1, 1000); // PE5
-	  	    	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, 1000); // PE6
-	  	    	    count++;
-
-	  	    	  }else{
-	  	    	     PWM_SetDuty(&htim9, TIM_CHANNEL_1, pwm_targets[0]); // PE5
-	  	    	     PWM_SetDuty(&htim9, TIM_CHANNEL_2, pwm_targets[1]); // PE6
+	  	     }else{
+	  	    	    PWM_SetDuty(&htim9, TIM_CHANNEL_1, pwm_targets[0]); // PE5
+	  	    	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, pwm_targets[1]); // PE6
 	  	    	  }
+
 	  	    	  last_50hz_time = now2;
-	  	      }
+	 }
 
-	  	      if (now2 - last_100hz_time >= 10) {
+	  if (now2 - last_100hz_time >= 10) {
 
-	  	    	  PWM_SetDuty(&htim12, TIM_CHANNEL_1, pwm_targets[2]); // PB14
-	  	    	  PWM_SetDuty(&htim12, TIM_CHANNEL_2, pwm_targets[3]); // PB15
-	  	    	  last_100hz_time = now2;
+	  	    PWM_SetDuty(&htim12, TIM_CHANNEL_1, pwm_targets[2]); // PB14
+	  	    PWM_SetDuty(&htim12, TIM_CHANNEL_2, pwm_targets[3]); // PB15
+	  	    last_100hz_time = now2;
 
+	  	   }
 
-	  	      }
+	  if (now2 - last_battery_tx_time >= 100) {
+	  	     send_battery_data();
+	  	      last_battery_tx_time = now2;
+	  	       }
 
-	  	    if (now2 - last_battery_tx_time >= 100) {
-	  	                send_battery_data();
-	  	                last_battery_tx_time = now2;
-	  	            }
 
     /* USER CODE END WHILE */
 
@@ -390,18 +375,15 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if(huart->Instance == USART1) {
-        debug_tx_busy = false;
 
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+    if (hadc->Instance == ADC1) {
+         battery_data_ready = true;
     }
-
-    if (huart->Instance == USART2)
-        {
-
-            uart_tx2_busy = false;
-        }
 }
+
+
 
 /* USER CODE END 4 */
 

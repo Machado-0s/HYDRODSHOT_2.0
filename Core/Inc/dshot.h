@@ -14,7 +14,7 @@
 
 // Include the pair files
 #include "dshot_A.h"
-#include "uart_cmd.h"
+
 
 typedef struct {
     uint8_t  motor_index;

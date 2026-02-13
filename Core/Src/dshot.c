@@ -2,7 +2,6 @@
 #include "dshot_A.h"
 #include <string.h>
 #include <stdio.h>
-#include "uart_cmd.h"
 #include "math.h"
 
 // --- Global Variables ---

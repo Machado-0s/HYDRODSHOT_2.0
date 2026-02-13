@@ -63,8 +63,8 @@ all: main-build
 main-build: SAUVC_T1_T8.elf secondary-outputs
 
 # Tool invocations
-SAUVC_T1_T8.elf SAUVC_T1_T8.map: $(OBJS) $(USER_OBJS) E:\SINGAPORE\SAUVC_T1_T8\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SAUVC_T1_T8.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"E:\SINGAPORE\SAUVC_T1_T8\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SAUVC_T1_T8.map" -Wl,--gc-sections -static -u _scanf_float -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+SAUVC_T1_T8.elf SAUVC_T1_T8.map: $(OBJS) $(USER_OBJS) E:\CUBE\ IDE\SINGAPORE\SAUVC_T1_T8\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "SAUVC_T1_T8.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"E:\CUBE IDE\SINGAPORE\SAUVC_T1_T8\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SAUVC_T1_T8.map" -Wl,--gc-sections -static -u _scanf_float -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

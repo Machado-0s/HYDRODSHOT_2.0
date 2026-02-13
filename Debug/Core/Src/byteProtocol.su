@@ -1,7 +1,4 @@
-../Core/Src/byteProtocol.c:26:6:COBS_Decode	24	static
-../Core/Src/byteProtocol.c:39:9:Calculate_CRC8	24	static
-../Core/Src/byteProtocol.c:56:6:Debug_Print	16	static
-../Core/Src/byteProtocol.c:68:13:process_complete_packet_from_buffer	48	static
-../Core/Src/byteProtocol.c:100:6:ByteProtocol_Init	8	static
-../Core/Src/byteProtocol.c:111:6:ByteProtocol_IdleLineCallback	64	static
-../Core/Src/byteProtocol.c:186:6:HAL_UART_ErrorCallback	16	static
+../Core/Src/byteProtocol.c:42:9:Calculate_CRC8	0	static
+../Core/Src/byteProtocol.c:113:6:ByteProtocol_Init	16	static
+../Core/Src/byteProtocol.c:123:6:HAL_UARTEx_RxEventCallback	88	static
+../Core/Src/byteProtocol.c:131:6:HAL_UART_ErrorCallback	16	static

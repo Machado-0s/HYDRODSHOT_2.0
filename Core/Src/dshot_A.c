@@ -9,7 +9,6 @@
 #include "dshot.h"
 #include <string.h>
 #include <stdio.h>
-#include "uart_cmd.h"
 #include "math.h"
 
 // TIM1_UP - DMA2 Stream 5 - PA5, PA6

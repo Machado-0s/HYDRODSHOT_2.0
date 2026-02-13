@@ -30,8 +30,7 @@ Core/Src/dshot.o: ../Core/Src/dshot.c ../Core/Inc/dshot.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- ../Core/Inc/dshot_A.h ../Core/Inc/dshot.h ../Core/Inc/uart_cmd.h \
- ../Core/Inc/dshot_A.h ../Core/Inc/uart_cmd.h
+ ../Core/Inc/dshot_A.h ../Core/Inc/dshot.h ../Core/Inc/dshot_A.h
 ../Core/Inc/dshot.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -67,6 +66,4 @@ Core/Src/dshot.o: ../Core/Src/dshot.c ../Core/Inc/dshot.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Core/Inc/dshot_A.h:
 ../Core/Inc/dshot.h:
-../Core/Inc/uart_cmd.h:
 ../Core/Inc/dshot_A.h:
-../Core/Inc/uart_cmd.h:
