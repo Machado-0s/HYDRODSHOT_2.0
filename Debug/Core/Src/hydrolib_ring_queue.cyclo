@@ -9,8 +9,8 @@
 ../Core/Src/hydrolib_ring_queue.c:120:21:hydrolib_RingQueue_Read2BytesLE	3
 ../Core/Src/hydrolib_ring_queue.c:169:21:hydrolib_RingQueue_Read4BytesLE	5
 ../Core/Src/hydrolib_ring_queue.c:206:21:hydrolib_RingQueue_Read	4
-../Core/Src/hydrolib_ring_queue.c:233:10:hydrolib_RingQueue_FindByte	3
-../Core/Src/hydrolib_ring_queue.c:246:10:hydrolib_RingQueue_Find4BytesLE	6
+../Core/Src/hydrolib_ring_queue.c:233:10:hydrolib_RingQueue_FindByte	4
+../Core/Src/hydrolib_ring_queue.c:246:10:hydrolib_RingQueue_Find4BytesLE	7
 ../Core/Src/hydrolib_ring_queue.c:276:10:hydrolib_RingQueue_GetLength	1
 ../Core/Src/hydrolib_ring_queue.c:281:6:hydrolib_RingQueue_IsEmpty	1
 ../Core/Src/hydrolib_ring_queue.c:286:6:hydrolib_RingQueue_IsFull	1

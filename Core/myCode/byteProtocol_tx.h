@@ -10,10 +10,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "byteProtocol.h"
-
-#define TX_HEADER_1 0xFF
-#define TX_HEADER_2 0xFD
 
 typedef struct {
     uint16_t vbat1_adc;
@@ -21,8 +17,5 @@ typedef struct {
     bool killswitch_state;
 } BatteryData_t;
 
-extern volatile bool debug_tx_busy;
 
-void ByteProtocol_TX_Init(void);
-void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data);
 #endif // BYTEPROTOCOL_TX_H

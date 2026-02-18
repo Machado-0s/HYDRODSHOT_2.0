@@ -22,7 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "byteProtocol.h"
+
 
 /* USER CODE END Includes */
 
@@ -251,6 +251,7 @@ void DMA2_Stream0_IRQHandler(void)
 }
 
 
+
 /**
   * @brief This function handles DMA2 stream2 global interrupt.
   */
@@ -264,6 +265,9 @@ void DMA2_Stream2_IRQHandler(void)
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
 }
+
+
+
 
 /**
   * @brief This function handles DMA2 stream7 global interrupt.

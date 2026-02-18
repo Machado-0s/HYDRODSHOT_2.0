@@ -33,9 +33,6 @@
 
 /* USER CODE END 1 */
 
-/**
-  * Enable DMA controller clock
-  */
 
 /* USER CODE BEGIN 2 */
 
