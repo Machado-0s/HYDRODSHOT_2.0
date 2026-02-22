@@ -68,7 +68,7 @@ extern "C" {
 extern "C" {
 extern UART_HandleTypeDef huart1;
 }
-#define BUFFER_LENGTH 14
+#define BUFFER_LENGTH 20
 #define DSHOT_MAX_RPM 6000
 
 float value = 0.0;
@@ -80,8 +80,6 @@ uint8_t pid_target_speed_rpm_conversion[MOTORS_COUNT] = {0};
 uint8_t pinState = 0;
 uint16_t adc_buffer[2];
 volatile bool battery_data_ready = false;
-uint16_t bat1 = 0;
-uint16_t bat2 = 0;
 static uint8_t tx_buffer_bat[5];
 BatteryData_t battery_data;
 
@@ -120,19 +118,20 @@ private:
 
 hydrolib::bus::datalink::StreamManager manager(1, huart1);
 hydrolib::bus::datalink::Stream stream(manager, 0xFD);
+hydrolib::bus::datalink::Stream stream1(manager, 0xFF);
 
 Memory memory;
 
 hydrolib::bus::application::Slave slave(stream, memory);
-hydrolib::bus::application::Master<hydrolib::bus::datalink::Stream<UART_HandleTypeDef>&> master(stream);
+hydrolib::bus::application::Master master(stream1);
+
 
 void getCommmands(void){
 
-      
-       for(int i =0;i<10;i++){
-       if (memory.Read(&pid_target_speed_rpm_conversion, 0, 10) != hydrolib::ReturnCode::OK)
-    continue;
+      memory.Read(&pid_target_speed_rpm_conversion, 0, 10);
+      memory.Read(&pwm_targets_conversion, 10 , 4);
 
+       for(int i =0;i<10;i++){
         if (pid_target_speed_rpm_conversion[i] >= 100 && pid_target_speed_rpm_conversion[i] <= 200) {
             int32_t signed_val = (int32_t)pid_target_speed_rpm_conversion[i] - 150;
             int32_t rpm_int = (signed_val * DSHOT_MAX_RPM) / 50.0f;
@@ -141,9 +140,6 @@ void getCommmands(void){
     }
 
     for (int i =1;i<4;i++){
-           if (memory.Read(&pwm_targets_conversion, 10 , 4) != hydrolib::ReturnCode::OK)
-    continue;
-
         if (pwm_targets_conversion[i] >= 100 && pwm_targets_conversion[i] <= 200) {
             uint16_t pulse_us = 1000 + ((uint16_t)(pwm_targets_conversion[i] - 100) * 1000 / 100);
             pwm_targets[i] = pulse_us;
@@ -173,7 +169,7 @@ void adc_start(void) {
 
 void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data)
 {
-    memset(tx_buffer_bat, 0, sizeof(tx_buffer_bat));
+    
 
     tx_buffer_bat[0] =data->vbat1_adc & 0xFF;
     tx_buffer_bat[1] =(data->vbat1_adc >> 8) & 0xFF;
@@ -181,7 +177,8 @@ void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data)
     tx_buffer_bat[3] =(data->vbat2_adc >> 8) & 0xFF;
     tx_buffer_bat[4] =data->killswitch_state ? 0x01 : 0x00;
 
-   master.Write(tx_buffer_bat, 0, 5);
+   //master.Write(tx_buffer_bat, 0, 5);
+  memory.Write(tx_buffer_bat, 14, 5);
 }
 
 void quick_battery_read(void){
@@ -190,10 +187,6 @@ void quick_battery_read(void){
 }
 
 void send_battery_data(void) {
-
-    battery_data.vbat1_adc = bat1;
-    battery_data.vbat2_adc = bat2;
-
     ByteProtocol_TX_SendBatteryData(&battery_data);
 }
 
@@ -269,7 +262,6 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   HalUartAdapter_Init(&huart1);
-  
   PWM_Init();
   adc_start();
 

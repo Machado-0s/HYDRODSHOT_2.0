@@ -15,7 +15,7 @@
 #include <stdint.h>
 
 #define UART_RX_DMA_BUFFER_SIZE    256    
-#define UART_RING_BUFFER_SIZE      512    
+#define UART_RING_BUFFER_SIZE      512   
 
 
 static uint8_t  uart_rx_dma_buffer[UART_RX_DMA_BUFFER_SIZE];
@@ -67,22 +67,6 @@ int read(UART_HandleTypeDef &huart, void *dest, unsigned length)
 
     return static_cast<int>(to_read);
 }
-
-
-
-/*int write(UART_HandleTypeDef &huart, const void *src, unsigned length)
-{
-    HAL_StatusTypeDef status = HAL_UART_Transmit(
-        &huart,
-        const_cast<uint8_t*>(static_cast<const uint8_t*>(src)),
-        length,
-        HAL_MAX_DELAY
-    );
-
-    if (status == HAL_OK) return static_cast<int>(length);
-    return -1;
-}
-*/
 
 static volatile bool uart_tx_done = true;
 

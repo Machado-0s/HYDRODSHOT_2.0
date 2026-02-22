@@ -267,8 +267,6 @@ void DMA2_Stream2_IRQHandler(void)
 }
 
 
-
-
 /**
   * @brief This function handles DMA2 stream7 global interrupt.
   */
