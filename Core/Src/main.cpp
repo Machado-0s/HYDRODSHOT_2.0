@@ -25,7 +25,6 @@ extern "C" {
 #include "dma.h"
 #include "tim.h"
 #include "gpio.h"
-#include "usart.h"
 #include "dshot.h"
 #include "pwm.h"
 #include "dshot_A.h"
@@ -37,14 +36,39 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
+#include "hydrv_uart.hpp"
+#include "hydrv_gpio_low.hpp"
 #include "hydrolib_bus_application_slave.hpp"
 #include "hydrolib_bus_datalink_stream.hpp"
 #include "hydrolib_bus_application_master.hpp"
-#include "hal_uart_adapter.hpp"
 #include "hydrolib_return_codes.hpp"
+#include "hydrolib_log_distributor.hpp"
+#include "hydrolib_logger.hpp"
 #include <cstring>
-#include "byteProtocol_tx.h"
+
+#include <chrono>
+#include <ctime>
+
+extern "C" {
+#include <sys/time.h>
+#include <errno.h>
+
+int _gettimeofday(struct timeval *tv, void *tzvp) {
+    if (tv) {
+        // If you have a global millisecond counter (like HAL_GetTick or a custom one):
+        // uint32_t ms = HAL_GetTick(); 
+        // tv->tv_sec = ms / 1000;
+        // tv->tv_usec = (ms % 1000) * 1000;
+        
+        // Or just return 0 if you don't actually need real-world time:
+        tv->tv_sec = 0;
+        tv->tv_usec = 0;
+    }
+    return 0;
+}
+}
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,8 +92,14 @@ extern "C" {
 extern "C" {
 extern UART_HandleTypeDef huart1;
 }
-#define BUFFER_LENGTH 14
+#define BUFFER_LENGTH 20
 #define DSHOT_MAX_RPM 6000
+
+typedef struct {
+    uint16_t vbat1_adc;
+    uint16_t vbat2_adc;
+    bool killswitch_state;
+} BatteryData_t;
 
 float value = 0.0;
 uint16_t pwm_targets[4] = {1500, 1500, 1500, 1500};
@@ -117,21 +147,45 @@ private:
 };
 
 
+// constinit hydrv::clock::Clock clock(hydrv::clock::Clock::HSI_DEFAULT);
 
-hydrolib::bus::datalink::StreamManager manager(1, huart1);
-hydrolib::bus::datalink::Stream stream(manager, 0xFD);
+constinit hydrv::GPIO::GPIOLow rx_pin1(hydrv::GPIO::GPIOLow::GPIOA_port, 10,
+                                       hydrv::GPIO::GPIOLow::GPIO_UART_RX);
+constinit hydrv::GPIO::GPIOLow tx_pin1(hydrv::GPIO::GPIOLow::GPIOA_port, 9,
+                                       hydrv::GPIO::GPIOLow::GPIO_UART_TX);
+constinit hydrv::UART::UART<255, 255>
+    uart1(hydrv::UART::UARTLow::USART1_115200_LOW, rx_pin1, tx_pin1, 7);
+
+constinit hydrv::GPIO::GPIOLow rx_pin2(hydrv::GPIO::GPIOLow::GPIOD_port, 6,
+                                       hydrv::GPIO::GPIOLow::GPIO_UART_RX);
+constinit hydrv::GPIO::GPIOLow tx_pin2(hydrv::GPIO::GPIOLow::GPIOD_port, 5,
+                                       hydrv::GPIO::GPIOLow::GPIO_UART_TX);
+constinit hydrv::UART::UART<255, 255>
+    uart2(hydrv::UART::UARTLow::USART2_115200_LOW, rx_pin2, tx_pin2, 7);
+
+
+    char log_format[] = "[%s] [%l] %m\n\r";
+
+constinit hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>> distributor(log_format, uart2);
+
+constinit hydrolib::logger::Logger<hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>>> logger("SerialProtocol", 1, distributor);
+
+hydrolib::bus::datalink::StreamManager manager(1, uart1, logger);
+
+hydrolib::bus::datalink::Stream stream(manager, 2);
 
 Memory memory;
 
-hydrolib::bus::application::Slave slave(stream, memory);
-hydrolib::bus::application::Master<hydrolib::bus::datalink::Stream<UART_HandleTypeDef>&> master(stream);
+hydrolib::bus::application::Slave slave(stream, memory, logger);
+
+hydrolib::bus::application::Master master(stream, logger);
 
 void getCommmands(void){
 
-      
+     memory.Read(&pid_target_speed_rpm_conversion, 0 , 10) ;
+    memory.Read(&pwm_targets_conversion, 10 , 4) ;
+       
        for(int i =0;i<10;i++){
-       if (memory.Read(&pid_target_speed_rpm_conversion, 0, 10) != hydrolib::ReturnCode::OK)
-    continue;
 
         if (pid_target_speed_rpm_conversion[i] >= 100 && pid_target_speed_rpm_conversion[i] <= 200) {
             int32_t signed_val = (int32_t)pid_target_speed_rpm_conversion[i] - 150;
@@ -141,8 +195,6 @@ void getCommmands(void){
     }
 
     for (int i =1;i<4;i++){
-           if (memory.Read(&pwm_targets_conversion, 10 , 4) != hydrolib::ReturnCode::OK)
-    continue;
 
         if (pwm_targets_conversion[i] >= 100 && pwm_targets_conversion[i] <= 200) {
             uint16_t pulse_us = 1000 + ((uint16_t)(pwm_targets_conversion[i] - 100) * 1000 / 100);
@@ -173,15 +225,13 @@ void adc_start(void) {
 
 void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data)
 {
-    memset(tx_buffer_bat, 0, sizeof(tx_buffer_bat));
-
     tx_buffer_bat[0] =data->vbat1_adc & 0xFF;
     tx_buffer_bat[1] =(data->vbat1_adc >> 8) & 0xFF;
     tx_buffer_bat[2] =data-> vbat2_adc & 0xFF;
     tx_buffer_bat[3] =(data->vbat2_adc >> 8) & 0xFF;
     tx_buffer_bat[4] =data->killswitch_state ? 0x01 : 0x00;
 
-   master.Write(tx_buffer_bat, 0, 5);
+   master.Write(tx_buffer_bat, 14, 5);
 }
 
 void quick_battery_read(void){
@@ -190,10 +240,6 @@ void quick_battery_read(void){
 }
 
 void send_battery_data(void) {
-
-    battery_data.vbat1_adc = bat1;
-    battery_data.vbat2_adc = bat2;
-
     ByteProtocol_TX_SendBatteryData(&battery_data);
 }
 
@@ -265,11 +311,9 @@ int main(void)
   MX_TIM9_Init();
   MX_TIM12_Init();
   MX_ADC1_Init();
-  MX_USART1_UART_Init();
+  //MX_USART1_UART_Init();
 
-  /* USER CODE BEGIN 2 */
-  HalUartAdapter_Init(&huart1);
-  
+  /* USER CODE BEGIN 2 */ 
   PWM_Init();
   adc_start();
 
@@ -277,6 +321,11 @@ int main(void)
   preset_bb_Dshot_buffers();
   pid_reset_all();
   calibration();
+
+     NVIC_SetPriorityGrouping(0);
+    uart1.Init();
+    uart2.Init();
+  
 
   uint32_t last_50hz_time = 0;
   uint32_t last_100hz_time = 0;
@@ -425,6 +474,13 @@ extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
          battery_data_ready = true;
     }
 }
+
+extern "C"
+{
+    void USART2_IRQHandler(void) { uart2.IRQCallback(); }
+    void USART1_IRQHandler(void) { uart1.IRQCallback(); }
+}
+
 /* USER CODE END 4 */
 
 /**

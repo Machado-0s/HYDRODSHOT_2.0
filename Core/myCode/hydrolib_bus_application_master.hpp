@@ -1,147 +1,110 @@
 #pragma once
 
-#include <cstdint>
+#include <unistd.h>
+
+#include <chrono>
 #include <cstring>
-#include <type_traits>
-#include <utility>
 
 #include "hydrolib_bus_application_commands.hpp"
-#include "hydrolib_return_codes.hpp"
-
-
-#include "hydrolib_bus_datalink_stream.hpp"
-#include "hydrolib_bus_datalink_message.hpp"
+#include "hydrolib_log_macro.hpp"
+#include "hydrolib_stream_concepts.hpp"
 
 namespace hydrolib::bus::application {
+using namespace std::literals::chrono_literals;
 
+template <concepts::stream::ByteFullStreamConcept TxRxStream, typename Logger>
+class Master {
+ public:
+  static constexpr auto kRequestTimeout = 1s;
 
+  constexpr Master(TxRxStream &stream, Logger &logger);
+  Master(const Master &) = delete;
+  Master(Master &&) = delete;
+  Master &operator=(const Master &) = delete;
+  Master &operator=(Master &&) = delete;
+  ~Master() = default;
 
-template <typename T, typename = void>
-struct has_read : std::false_type {};
+  hydrolib::ReturnCode Process();
+  void Read(void *data, int address, int length);
+  void Write(const void *data, int address, int length);
 
-template <typename T>
-struct has_read<T, std::void_t<decltype(
-    read(std::declval<T&>(), std::declval<void*>(), std::declval<unsigned>())
-)>> : std::is_convertible<
-    decltype(read(std::declval<T&>(), nullptr, 0u)),
-    int
-> {};
+ private:
+  TxRxStream &stream_;
+  Logger &logger_;
 
+  void *requested_data_ = nullptr;
+  int requested_length_ = 0;
 
-template <typename T, typename = void>
-struct has_write : std::false_type {};
+  ResponseMessageBuffer rx_buffer_{};
+  MemoryAccessMessageBuffer tx_buffer_{};
 
-template <typename T>
-struct has_write<T, std::void_t<decltype(
-    write(std::declval<T&>(), std::declval<const void*>(), std::declval<unsigned>())
-)>> : std::is_convertible<
-    decltype(write(std::declval<T&>(), nullptr, 0u)),
-    int
-> {};
-
-
-template <typename T>
-inline constexpr bool is_byte_full_stream_v =
-    has_read<T>::value && has_write<T>::value;
-
-
-template <typename TxRxStream>
-class Master
-{
-    static_assert(is_byte_full_stream_v<TxRxStream>,
-        "TxRxStream must provide: int read(void*, unsigned) and int write(const void*, unsigned)");
-
-public:
-    constexpr Master(TxRxStream &stream);
-
-    bool Process();
-    void Read(void *data, unsigned address, unsigned length);
-    void Write(const void *data, unsigned address, unsigned length);
-
-private:
-    TxRxStream &stream_;
-
-    void *requested_data_ = nullptr;
-    int requested_length_ = 0;
-
-    uint8_t rx_buffer_[kMaxMessageLength] = {};
-    uint8_t tx_buffer_[kMaxMessageLength] = {};
+  std::chrono::steady_clock::time_point last_request_time_;
 };
 
+template <concepts::stream::ByteFullStreamConcept TxRxStream, typename Logger>
+constexpr Master<TxRxStream, Logger>::Master(TxRxStream &stream, Logger &logger)
+    : stream_(stream), logger_(logger) {}
 
-template <typename TxRxStream>
-constexpr Master<TxRxStream>::Master(TxRxStream &stream)
-    : stream_(stream)
-{
-    // buffers already zero-initialized via = {}
-}
+template <concepts::stream::ByteFullStreamConcept TxRxStream, typename Logger>
+hydrolib::ReturnCode Master<TxRxStream, Logger>::Process() {
+  if (requested_data_ == nullptr) {
+    return hydrolib::ReturnCode::FAIL;
+  }
 
+  if (std::chrono::steady_clock::now() - last_request_time_ > kRequestTimeout) {
+    LOG_ERROR(logger_, "Request timeout");
+    write(stream_, &tx_buffer_, sizeof(MemoryAccessHeader));
+    last_request_time_ = std::chrono::steady_clock::now();
+    return hydrolib::ReturnCode::TIMEOUT;
+  }
 
-template <typename TxRxStream>
-bool Master<TxRxStream>::Process()
-{
-    if (!requested_data_)
-    {
-        return false;
-    }
+  int read_length = read(stream_, &rx_buffer_, kMaxMessageLength);
+  if (read_length == 0) {
+    return hydrolib::ReturnCode::NO_DATA;
+  }
 
-    int read_length = read(stream_, rx_buffer_, kMaxMessageLength);
-    if (read_length <= 0)
-    {
-        return false;
-    }
-
-    Command command = *reinterpret_cast<Command *>(rx_buffer_);
-
-    switch (command)
-    {
+  switch (rx_buffer_.command) {
     case Command::RESPONSE:
-        if (requested_length_ + static_cast<int>(sizeof(Command)) != read_length)
-        {
-            return false;
-        }
-
-        memcpy(requested_data_, rx_buffer_ + sizeof(Command), requested_length_);
-        requested_data_ = nullptr;
-        return true;
-
+      if (requested_length_ + static_cast<int>(sizeof(Command)) !=
+          read_length) {
+        return hydrolib::ReturnCode::ERROR;
+      }
+      memcpy(requested_data_, static_cast<void *>(rx_buffer_.data),
+             requested_length_);
+      requested_data_ = nullptr;
+      return hydrolib::ReturnCode::OK;
     case Command::ERROR:
     case Command::READ:
     case Command::WRITE:
     default:
-        // Logging removed — silently fail
-        return false;
-    }
+      LOG_WARNING(logger_, "Wrong command");
+      return hydrolib::ReturnCode::ERROR;
+  }
 }
 
+template <concepts::stream::ByteFullStreamConcept TxRxStream, typename Logger>
+void Master<TxRxStream, Logger>::Read(void *data, int address, int length) {
+  requested_data_ = data;
+  requested_length_ = length;
 
-template <typename TxRxStream>
-void Master<TxRxStream>::Read(void *data, unsigned address, unsigned length)
-{
-    requested_data_ = data;
-    requested_length_ = length;
+  tx_buffer_.header.command = Command::READ;
+  tx_buffer_.header.info.address = address;
+  tx_buffer_.header.info.length = length;
 
-    // Using MemoryAccessHeader (assumed alias or struct from commands.hpp)
-    MemoryAccessHeader *header = reinterpret_cast<MemoryAccessHeader *>(tx_buffer_);
-    header->command = Command::READ;
-    header->info.address = address;
-    header->info.length = length;
-
-    write(stream_, tx_buffer_, sizeof(MemoryAccessHeader));
+  write(stream_, &tx_buffer_, sizeof(MemoryAccessHeader));
+  last_request_time_ = std::chrono::steady_clock::now();
 }
 
+template <concepts::stream::ByteFullStreamConcept TxRxStream, typename Logger>
+void Master<TxRxStream, Logger>::Write(const void *data, int address,
+                                       int length) {
+  tx_buffer_.header.command = Command::WRITE;
+  tx_buffer_.header.info.address = address;
+  tx_buffer_.header.info.length = length;
 
-template <typename TxRxStream>
-void Master<TxRxStream>::Write(const void *data, unsigned address, unsigned length)
-{
-    MemoryAccessHeader *header = reinterpret_cast<MemoryAccessHeader *>(tx_buffer_);
-    header->command = Command::WRITE;
-    header->info.address = address;
-    header->info.length = length;
+  memcpy(static_cast<void *>(tx_buffer_.data), data, length);
 
-    memcpy(tx_buffer_ + sizeof(MemoryAccessHeader), data, length);
-
-    write(stream_, tx_buffer_, sizeof(MemoryAccessHeader) + length);
+  write(stream_, &tx_buffer_, sizeof(MemoryAccessHeader) + length);
 }
 
-} // namespace hydrolib::bus::application
+}  // namespace hydrolib::bus::application

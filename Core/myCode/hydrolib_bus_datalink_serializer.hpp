@@ -1,59 +1,92 @@
 #pragma once
 
+#include <cstring>
+
 #include "hydrolib_bus_datalink_message.hpp"
 #include "hydrolib_crc.hpp"
 #include "hydrolib_return_codes.hpp"
-#include <cstring>
+#include "hydrolib_stream_concepts.hpp"
 
 namespace hydrolib::bus::datalink {
+template <concepts::stream::ByteWritableStreamConcept TxStream, typename Logger>
+class Serializer {
+ public:
+  constexpr Serializer(AddressType self_address, TxStream &tx_stream,
+                       Logger &logger);
 
-template <typename TxStream>
-class Serializer
-{
-public:
-    constexpr Serializer(AddressType self_address, TxStream &tx_stream);
+ public:
+  ReturnCode Process(AddressType dest_address, const void *data,
+                     unsigned data_length);
 
-    ReturnCode Process(AddressType dest_address, const void *data,
-                       unsigned data_length);
+ public:
+  static void COBSEncoding(uint8_t magic_byte, uint8_t *data,
+                           unsigned data_length);
 
-private:
-    const AddressType address_;
-    TxStream &tx_stream_;
+ private:
+  const AddressType address_;
+  TxStream &tx_stream_;
+  Logger &logger_;
 
-    uint8_t current_message_[kMaxMessageLength] = {};
-    MessageHeader *current_header_;
+  uint8_t current_message_[kMaxMessageLength];
+  MessageHeader *current_header_;
 };
 
-template <typename TxStream>
-constexpr Serializer<TxStream>::Serializer(
-    AddressType address, TxStream &tx_stream)
+template <concepts::stream::ByteWritableStreamConcept TxStream, typename Logger>
+constexpr Serializer<TxStream, Logger>::Serializer(AddressType address,
+                                                   TxStream &tx_stream,
+                                                   Logger &logger)
     : address_(address),
       tx_stream_(tx_stream),
-      current_header_(reinterpret_cast<MessageHeader *>(current_message_))
-{
-    current_header_->magic_byte = kMagicByte;
+      logger_(logger),
+      current_header_(reinterpret_cast<MessageHeader *>(current_message_)) {
+  current_header_->magic_byte = kMagicByte;
+  current_header_->cobs_length = 0;
+  for (unsigned i = 1; i < kMaxMessageLength; i++) {
+    current_message_[i] = 0;
+  }
 }
 
-template <typename TxStream>
-ReturnCode Serializer<TxStream>::Process(AddressType dest_address,
-                                         const void *data,
-                                         unsigned data_length)
-{
-    current_header_->dest_address = dest_address;
-    current_header_->src_address  = address_;
-    current_header_->length = static_cast<uint8_t>(data_length + kCRCLength);
+template <concepts::stream::ByteWritableStreamConcept TxStream, typename Logger>
+ReturnCode Serializer<TxStream, Logger>::Process(AddressType dest_address,
+                                                 const void *data,
+                                                 unsigned data_length) {
+  current_header_->dest_address = dest_address;
+  current_header_->src_address = address_;
+  current_header_->cobs_length = 0;
+  current_header_->length =
+      static_cast<uint8_t>(sizeof(MessageHeader) + data_length + kCRCLength);
+  memcpy(current_message_ + sizeof(MessageHeader), data, data_length);
+  current_message_[sizeof(MessageHeader) + data_length] =
+      crc::CountCRC8(current_message_, sizeof(MessageHeader) + data_length);
 
-    memcpy(current_message_ + sizeof(MessageHeader), data, data_length);
+  COBSEncoding(kMagicByte,
+               current_message_ + sizeof(MessageHeader) -
+                   sizeof(MessageHeader::cobs_length),
+               current_header_->length - sizeof(MessageHeader) +
+                   sizeof(MessageHeader::cobs_length));
 
-    uint8_t crc_val = crc::CountCRC8(current_message_, sizeof(MessageHeader) + data_length);
-    current_message_[sizeof(MessageHeader) + data_length] = crc_val;
-
-    unsigned total_length = sizeof(MessageHeader) + data_length + kCRCLength;
-    int res = write(tx_stream_, current_message_, total_length);
-
-    if (res < 0) return ReturnCode::ERROR;
-    if ((unsigned)res != total_length) return ReturnCode::OVERFLOW;
+  int res = write(tx_stream_, current_message_, current_header_->length);
+  if (res < 0) {
+    return ReturnCode::ERROR;
+  } else if (res != current_header_->length) {
+    return ReturnCode::OVERFLOW;
+  } else {
     return ReturnCode::OK;
+  }
 }
 
-} // namespace hydrolib::bus::datalink
+template <concepts::stream::ByteWritableStreamConcept TxStream, typename Logger>
+void Serializer<TxStream, Logger>::COBSEncoding(uint8_t magic_byte,
+                                                uint8_t *data,
+                                                unsigned data_length) {
+  unsigned last_appearance = 0;
+  for (unsigned i = 1; i < data_length; i++) {
+    if (data[i] == magic_byte) {
+      data[last_appearance] = i - last_appearance;
+      last_appearance = i;
+    }
+  }
+  data[last_appearance] = 0;
+}
+
+}  // namespace hydrolib::bus::datalink

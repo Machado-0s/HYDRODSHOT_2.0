@@ -2,17 +2,16 @@
 
 #include <cstdint>
 
-namespace hydrolib::bus::datalink
-{
+namespace hydrolib::bus::datalink {
 
 using AddressType = uint8_t;
 
-struct MessageHeader
-{
-    uint8_t magic_byte;
-    AddressType dest_address;
-    AddressType src_address;
-    uint8_t length;
+struct MessageHeader {
+  uint8_t magic_byte;
+  AddressType dest_address;
+  AddressType src_address;
+  uint8_t length;
+  uint8_t cobs_length;
 } __attribute__((__packed__));
 
 constexpr uint8_t kMagicByte = 0xAA;
@@ -21,4 +20,9 @@ constexpr unsigned kMaxMessageLength = UINT8_MAX;
 constexpr unsigned kMaxDataLength =
     kMaxMessageLength - sizeof(MessageHeader) - kCRCLength;
 
-} // namespace hydrolib::bus::datalink
+struct MessageBuffer {
+  MessageHeader header;
+  uint8_t data_and_crc[kMaxDataLength + kCRCLength]; //NOLINT
+} __attribute__((__packed__));
+
+}  // namespace hydrolib::bus::datalink

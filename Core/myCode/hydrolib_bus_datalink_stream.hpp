@@ -1,160 +1,177 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstring>
+
 #include "hydrolib_bus_datalink_deserializer.hpp"
 #include "hydrolib_bus_datalink_message.hpp"
 #include "hydrolib_bus_datalink_serializer.hpp"
-#include "hydrolib_stream_traits.hpp"
-#include <cstring>
-#include <type_traits>
+#include "hydrolib_log_macro.hpp"
+#include "hydrolib_ring_queue.hpp"
 
 namespace hydrolib::bus::datalink {
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Traits access
-// ──────────────────────────────────────────────────────────────────────────────
-
-template <typename T>
-inline constexpr bool is_byte_full_stream_v =
-    hydrolib::concepts::stream::is_byte_full_stream_v<T>;
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Forward declarations
-// ──────────────────────────────────────────────────────────────────────────────
-
-template <typename RxTxStream, int MATES_COUNT = 3>
-class StreamManager;
-
-template <typename RxTxStream, int MATES_COUNT = 3>
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT = 3>
 class Stream;
 
-// ──────────────────────────────────────────────────────────────────────────────
-// StreamManager
-// ──────────────────────────────────────────────────────────────────────────────
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT = 3>
+class StreamManager {
+  friend class Stream<RxTxStream, Logger, MATES_COUNT>;
 
-template <typename RxTxStream, int MATES_COUNT>
-class StreamManager
-{
-    friend class Stream<RxTxStream, MATES_COUNT>;
+ private:
+  using SerializerType = Serializer<RxTxStream, Logger>;
+  using DeserializerType = Deserializer<RxTxStream, Logger>;
 
-private:
-    using SerializerType   = Serializer<RxTxStream>;
-    using DeserializerType = Deserializer<RxTxStream>;
+ public:
+  constexpr StreamManager(AddressType self_address, RxTxStream &stream,
+                          Logger &logger);
+  StreamManager(const StreamManager &) = delete;
+  StreamManager(StreamManager &&) = delete;
+  StreamManager &operator=(const StreamManager &) = delete;
+  StreamManager &operator=(StreamManager &&) = delete;
+  ~StreamManager() = default;
 
-public:
-    constexpr StreamManager(AddressType self_address, RxTxStream &stream);
+  void Process();
+  [[nodiscard]] int GetLostBytes() const;
 
-    void Process();
+ private:
+  RxTxStream &stream_;
+  Logger &logger_;
 
-private:
-    RxTxStream &stream_;
-    const AddressType self_address_;
+  const AddressType self_address_;
 
-    DeserializerType deserializer_;
+  DeserializerType deserializer_;
 
-    Stream<RxTxStream, MATES_COUNT> *streams_[MATES_COUNT] = {nullptr};
-    int streams_count_ = 0;
+  std::array<Stream<RxTxStream, Logger, MATES_COUNT> *, MATES_COUNT> streams_ =
+      {nullptr};
+  int streams_count_ = 0;
 };
 
-template <typename RxTxStream, int MATES_COUNT>
-constexpr StreamManager<RxTxStream, MATES_COUNT>::StreamManager(
-    AddressType self_address, RxTxStream &stream)
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+class Stream {
+  friend class StreamManager<RxTxStream, Logger, MATES_COUNT>;
+
+ public:
+  constexpr Stream(
+      StreamManager<RxTxStream, Logger, MATES_COUNT> &stream_manager,
+      AddressType mate_address);
+  Stream(const Stream &) = delete;
+  Stream(Stream &&) = delete;
+  Stream &operator=(const Stream &) = delete;
+  Stream &operator=(Stream &&) = delete;
+  ~Stream() = default;
+
+  int Read(void *dest, int length);
+  int Write(const void *dest, int length);
+
+ private:
+  StreamManager<RxTxStream, Logger, MATES_COUNT> &stream_manager_;
+  const AddressType mate_address_;
+
+  ring_queue::RingQueue<kMaxMessageLength> buffer_;
+};
+
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+constexpr StreamManager<RxTxStream, Logger, MATES_COUNT>::StreamManager(
+    AddressType self_address, RxTxStream &stream, Logger &logger)
     : stream_(stream),
+      logger_(logger),
       self_address_(self_address),
-      deserializer_(self_address, stream)
-{
-    static_assert(is_byte_full_stream_v<RxTxStream>,
-                  "RxTxStream must provide int read(void*, unsigned) and int write(const void*, unsigned)");
-}
+      deserializer_(self_address, stream, logger) {}
 
-template <typename RxTxStream, int MATES_COUNT>
-void StreamManager<RxTxStream, MATES_COUNT>::Process()
-{
-    ReturnCode result = deserializer_.Process();
-    if (result == ReturnCode::OK)
-    {
-        AddressType message_source_address = deserializer_.GetSourceAddress();
-        unsigned message_length = deserializer_.GetDataLength();
-        const uint8_t *message_data = deserializer_.GetData();
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+void StreamManager<RxTxStream, Logger, MATES_COUNT>::Process() {
+  ReturnCode result = deserializer_.Process();
+  if (result == ReturnCode::OK) {
+    AddressType message_source_address = deserializer_.GetSourceAddress();
+    unsigned message_length = deserializer_.GetDataLength();
+    const uint8_t *message_data = deserializer_.GetData();
 
-        for (int i = 0; i < streams_count_; ++i)
-        {
-            if (streams_[i] && streams_[i]->mate_address_ == message_source_address)
-            {
-                std::memcpy(streams_[i]->buffer, message_data, message_length);
-                streams_[i]->message_length_ = message_length;
-                break;
-            }
+    for (int i = 0; i < streams_count_; i++) {
+      if (streams_[i]->mate_address_ == message_source_address) {
+        auto push_result =
+            streams_[i]->buffer_.Push(message_data, message_length);
+        if (push_result != ReturnCode::OK) {
+          LOG_ERROR(logger_, "Stream overflow");
         }
+        break;
+      }
     }
+  }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Stream
-// ──────────────────────────────────────────────────────────────────────────────
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+int StreamManager<RxTxStream, Logger, MATES_COUNT>::GetLostBytes() const {
+  return deserializer_.GetLostBytes();
+}
 
-template <typename RxTxStream, int MATES_COUNT>
-class Stream
-{
-    friend class StreamManager<RxTxStream, MATES_COUNT>;
-
-public:
-    constexpr Stream(StreamManager<RxTxStream, MATES_COUNT> &stream_manager,
-                     AddressType mate_address);
-
-    int Read(void *dest, unsigned length);
-    int Write(const void *dest, unsigned length);
-
-private:
-    StreamManager<RxTxStream, MATES_COUNT> &stream_manager_;
-    const AddressType mate_address_;
-
-    uint8_t buffer[kMaxMessageLength] = {};  // TODO: consider real queue
-    unsigned message_length_ = 0;
-};
-
-template <typename RxTxStream, int MATES_COUNT>
-constexpr Stream<RxTxStream, MATES_COUNT>::Stream(
-    StreamManager<RxTxStream, MATES_COUNT> &stream_manager,
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+constexpr Stream<RxTxStream, Logger, MATES_COUNT>::Stream(
+    StreamManager<RxTxStream, Logger, MATES_COUNT> &stream_manager,
     AddressType mate_address)
-    : stream_manager_(stream_manager),
-      mate_address_(mate_address)
-{
-    stream_manager_.streams_[stream_manager_.streams_count_] = this;
-    ++stream_manager_.streams_count_;
+    : stream_manager_(stream_manager), mate_address_(mate_address) {
+  stream_manager.streams_[stream_manager.streams_count_] = this;
+  stream_manager.streams_count_++;
 }
 
-template <typename RxTxStream, int MATES_COUNT>
-int Stream<RxTxStream, MATES_COUNT>::Read(void *dest, unsigned length)
-{
-    unsigned copy_len = (length > message_length_) ? message_length_ : length;
-    std::memcpy(dest, buffer, copy_len);
-    return static_cast<int>(copy_len);
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+int Stream<RxTxStream, Logger, MATES_COUNT>::Read(void *dest, int length) {
+  int current_length = buffer_.GetLength();
+  length = std::min<int>(length, current_length);
+  buffer_.Pull(dest, length);
+  return length;
 }
 
-template <typename RxTxStream, int MATES_COUNT>
-int Stream<RxTxStream, MATES_COUNT>::Write(const void *dest, unsigned length)
-{
-    typename StreamManager<RxTxStream, MATES_COUNT>::SerializerType serializer(
-        stream_manager_.self_address_, stream_manager_.stream_
-    );
-    ReturnCode result = serializer.Process(mate_address_, dest, length);
-    return (result == ReturnCode::OK) ? static_cast<int>(length) : 0;
+template <concepts::stream::ByteFullStreamConcept RxTxStream, typename Logger,
+          int MATES_COUNT>
+int Stream<RxTxStream, Logger, MATES_COUNT>::Write(const void *dest,
+                                                   int length) {
+  typename StreamManager<RxTxStream, Logger, MATES_COUNT>::SerializerType
+      serializer(stream_manager_.self_address_, stream_manager_.stream_,
+                 stream_manager_.logger_);
+  ReturnCode result = serializer.Process(mate_address_, dest, length);
+
+  if (result == ReturnCode::OK) {
+    return length;
+  }
+
+  return 0;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Free function wrappers
-// ──────────────────────────────────────────────────────────────────────────────
+template <hydrolib::concepts::stream::ByteFullStreamConcept RxTxStream,
+          typename Logger, int MATES_COUNT = 3>
+int read(typename hydrolib::bus::datalink::Stream<RxTxStream, Logger,
+                                                  MATES_COUNT> &stream,
+         void *dest, unsigned length);
 
-template <typename RxTxStream, int MATES_COUNT = 3>
-int read(Stream<RxTxStream, MATES_COUNT> &stream, void *dest, unsigned length)
-{
-    return stream.Read(dest, length);
+template <hydrolib::concepts::stream::ByteFullStreamConcept RxTxStream,
+          typename Logger, int MATES_COUNT = 3>
+int write(typename hydrolib::bus::datalink::Stream<RxTxStream, Logger,
+                                                   MATES_COUNT> &stream,
+          const void *dest, unsigned length);
+
+template <hydrolib::concepts::stream::ByteFullStreamConcept RxTxStream,
+          typename Logger, int MATES_COUNT>
+int read(typename hydrolib::bus::datalink::Stream<RxTxStream, Logger,
+                                                  MATES_COUNT> &stream,
+         void *dest, unsigned length) {
+  return stream.Read(dest, length);
 }
 
-template <typename RxTxStream, int MATES_COUNT = 3>
-int write(Stream<RxTxStream, MATES_COUNT> &stream, const void *dest, unsigned length)
-{
-    return stream.Write(dest, length);
+template <hydrolib::concepts::stream::ByteFullStreamConcept RxTxStream,
+          typename Logger, int MATES_COUNT>
+int write(typename hydrolib::bus::datalink::Stream<RxTxStream, Logger,
+                                                   MATES_COUNT> &stream,
+          const void *dest, unsigned length) {
+  return stream.Write(dest, length);
 }
 
-} // namespace hydrolib::bus::datalink
+}  // namespace hydrolib::bus::datalink

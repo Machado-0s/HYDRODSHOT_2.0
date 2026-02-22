@@ -3,38 +3,30 @@
 #include <cstdint>
 
 namespace hydrolib::bus::application {
+enum class Command : uint8_t { WRITE, READ, RESPONSE, ERROR };
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Application-layer commands and data structures
-// ──────────────────────────────────────────────────────────────────────────────
-
-enum class Command : uint8_t
-{
-    WRITE,     // Master → Slave: write data to memory
-    READ,      // Master → Slave: read data from memory
-    RESPONSE,  // Slave → Master: successful read response
-    ERROR      // Slave → Master: operation failed
-};
-
-// Payload structure for READ / WRITE commands
-struct MemoryAccessInfo
-{
-    uint8_t address;   // starting address in slave memory
-    uint8_t length;    // number of bytes to read/write
+struct MemoryAccessInfo {
+  uint8_t address;
+  uint8_t length;
 } __attribute__((__packed__));
 
-// Full header sent over the wire (command + access info)
-struct MemoryAccessHeader
-{
-    Command          command;
-    MemoryAccessInfo info;
+struct MemoryAccessHeader {
+  Command command;
+  MemoryAccessInfo info;
 } __attribute__((__packed__));
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Constants (used in slave/master implementations)
-// ──────────────────────────────────────────────────────────────────────────────
+constexpr unsigned kMaxDataLength = UINT8_MAX;
+constexpr unsigned kMaxMessageLength =
+    sizeof(MemoryAccessHeader) + kMaxDataLength;
 
-constexpr unsigned kMaxDataLength  = UINT8_MAX;                           // theoretical max payload
-constexpr unsigned kMaxMessageLength = sizeof(MemoryAccessHeader) + kMaxDataLength;
+struct MemoryAccessMessageBuffer {
+  MemoryAccessHeader header;
+  uint8_t data[kMaxDataLength];  // NOLINT
+} __attribute__((__packed__));
 
-} // namespace hydrolib::bus::application
+struct ResponseMessageBuffer {
+  Command command;
+  uint8_t data[kMaxDataLength];  // NOLINT
+} __attribute__((__packed__));
+
+}  // namespace hydrolib::bus::application

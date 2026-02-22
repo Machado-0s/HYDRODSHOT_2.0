@@ -2,27 +2,20 @@
 
 #include <cstdint>
 
-namespace hydrolib::crc
-{
-inline uint8_t CountCRC8(const uint8_t *data, unsigned length)
-{
-    uint8_t crc = 0; // Initial value 0x00
-    for (unsigned i = 0; i < length; i++)
-    {
-        crc ^= data[i];
-        for (uint8_t j = 0; j < 8; j++)
-        {
-            if (crc & 0x80)
-            {
-                // Polynomial 0x07
-                crc = (uint8_t)((crc << 1) ^ 0x07);
-            }
-            else
-            {
-                crc <<= 1;
-            }
-        }
+namespace hydrolib::crc {
+inline uint8_t CountCRC8(const uint8_t *buffer, unsigned length) {
+  uint16_t pol = 0x0700;
+  uint16_t crc = buffer[0] << 8;
+  for (uint8_t i = 1; i < length; i++) {
+    crc |= buffer[i];
+    for (uint8_t j = 0; j < 8; j++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1 ^ pol);
+      } else {
+        crc = crc << 1;
+      }
     }
-    return crc;
+  }
+  return crc >> 8;
 }
-} // namespace hydrolib::crc
+}  // namespace hydrolib::crc
