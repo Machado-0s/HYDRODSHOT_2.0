@@ -51,7 +51,7 @@ extern float PID_KP;
 extern float PID_KI;
 extern float PID_KD;
 
-extern volatile float pid_target_speed_rpms[MOTORS_COUNT];
+extern volatile uint16_t pid_target_speed_rpms[MOTORS_COUNT];
 
 extern UART_HandleTypeDef huart1;
 extern uint16_t motor_command_dshot_value;
