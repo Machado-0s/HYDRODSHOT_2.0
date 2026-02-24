@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.cpp
-  * @brief          : Merged Main program body (C++)
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.cpp
+ * @brief          : Merged Main program body (C++)
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -23,51 +23,37 @@ extern "C" {
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
-#include "tim.h"
-#include "gpio.h"
 #include "dshot.h"
-#include "pwm.h"
 #include "dshot_A.h"
-#include <string.h>
+#include "gpio.h"
+#include "pwm.h"
+#include "tim.h"
 #include <stdio.h>
+#include <string.h>
 }
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
-#include "hydrv_uart.hpp"
-#include "hydrv_gpio_low.hpp"
+#include "hydrolib_bus_application_master.hpp"
 #include "hydrolib_bus_application_slave.hpp"
 #include "hydrolib_bus_datalink_stream.hpp"
-#include "hydrolib_bus_application_master.hpp"
-#include "hydrolib_return_codes.hpp"
 #include "hydrolib_log_distributor.hpp"
 #include "hydrolib_logger.hpp"
+#include "hydrolib_return_codes.hpp"
+#include "hydrv_gpio_low.hpp"
+#include "hydrv_uart.hpp"
 #include <cstring>
 
 #include <chrono>
 #include <ctime>
 
 extern "C" {
-#include <sys/time.h>
 #include <errno.h>
-
-int _gettimeofday(struct timeval *tv, void *tzvp) {
-    if (tv) {
-        // If you have a global millisecond counter (like HAL_GetTick or a custom one):
-        // uint32_t ms = HAL_GetTick(); 
-        // tv->tv_sec = ms / 1000;
-        // tv->tv_usec = (ms % 1000) * 1000;
-        
-        // Or just return 0 if you don't actually need real-world time:
-        tv->tv_sec = 0;
-        tv->tv_usec = 0;
-    }
-    return 0;
-}
+#include <sys/time.h>
 }
 /* USER CODE END Includes */
 
@@ -96,16 +82,15 @@ extern UART_HandleTypeDef huart1;
 #define DSHOT_MAX_RPM 6000
 
 typedef struct {
-    uint16_t vbat1_adc;
-    uint16_t vbat2_adc;
-    bool killswitch_state;
+  uint16_t vbat1_adc;
+  uint16_t vbat2_adc;
+  bool killswitch_state;
 } BatteryData_t;
 
-float value = 0.0;
 uint16_t pwm_targets[4] = {1500, 1500, 1500, 1500};
-volatile float pid_target_speed_rpms[MOTORS_COUNT] = {0};
+volatile uint16_t pid_target_speed_rpms[MOTORS_COUNT] = {0};
 uint8_t pid_target_speed_rpm_conversion[MOTORS_COUNT] = {0};
- uint8_t pwm_targets_conversion[4] = {150, 150, 150, 150};
+uint8_t pwm_targets_conversion[4] = {150, 150, 150, 150};
 
 uint8_t pinState = 0;
 uint16_t adc_buffer[2];
@@ -115,40 +100,38 @@ uint16_t bat2 = 0;
 static uint8_t tx_buffer_bat[5];
 BatteryData_t battery_data;
 
- 
-class Memory
-{
+class Memory {
 public:
-    hydrolib::ReturnCode Read(void *buffer, unsigned address, unsigned length)
-    {
-        if (length + address > BUFFER_LENGTH)
-        {
-            return hydrolib::ReturnCode::FAIL;
-        }
-        memcpy(buffer, buffer_ + address, length);
-        return hydrolib::ReturnCode::OK;
+  hydrolib::ReturnCode Read(void *buffer, unsigned address, unsigned length) {
+    if (length + address > BUFFER_LENGTH) {
+      return hydrolib::ReturnCode::FAIL;
     }
+    memcpy(buffer, buffer_ + address, length);
+    return hydrolib::ReturnCode::OK;
+  }
 
-    hydrolib::ReturnCode Write(const void *buffer, unsigned address,
-                               unsigned length)
-    {
-        if (address + length > BUFFER_LENGTH)
-        {
-            return hydrolib::ReturnCode::FAIL;
-        }
-        memcpy(buffer_ + address, buffer, length);
-        return hydrolib::ReturnCode::OK;
+  hydrolib::ReturnCode Write(const void *buffer, unsigned address,
+                             unsigned length) {
+    if (address + length > BUFFER_LENGTH) {
+      return hydrolib::ReturnCode::FAIL;
     }
+    memcpy(buffer_ + address, buffer, length);
+    return hydrolib::ReturnCode::OK;
+  }
 
-    uint32_t Size() { return BUFFER_LENGTH; }
+  uint32_t Size() { return BUFFER_LENGTH; }
 
 private:
-    uint8_t buffer_[BUFFER_LENGTH] = {};
+  uint8_t buffer_[BUFFER_LENGTH] = {};
 };
 
+constinit hydrv::GPIO::GPIOLow ok_led(hydrv::GPIO::GPIOLow::GPIOC_port,
+                                      13, hydrv::GPIO::GPIOLow::GPIO_Output);
+constinit hydrv::GPIO::GPIOLow error_led(hydrv::GPIO::GPIOLow::GPIOC_port,
+                                         14,
+                                         hydrv::GPIO::GPIOLow::GPIO_Output);
 
-// constinit hydrv::clock::Clock clock(hydrv::clock::Clock::HSI_DEFAULT);
-
+// UART1
 constinit hydrv::GPIO::GPIOLow rx_pin1(hydrv::GPIO::GPIOLow::GPIOA_port, 10,
                                        hydrv::GPIO::GPIOLow::GPIO_UART_RX);
 constinit hydrv::GPIO::GPIOLow tx_pin1(hydrv::GPIO::GPIOLow::GPIOA_port, 9,
@@ -156,6 +139,7 @@ constinit hydrv::GPIO::GPIOLow tx_pin1(hydrv::GPIO::GPIOLow::GPIOA_port, 9,
 constinit hydrv::UART::UART<255, 255>
     uart1(hydrv::UART::UARTLow::USART1_115200_LOW, rx_pin1, tx_pin1, 7);
 
+// UART2
 constinit hydrv::GPIO::GPIOLow rx_pin2(hydrv::GPIO::GPIOLow::GPIOD_port, 6,
                                        hydrv::GPIO::GPIOLow::GPIO_UART_RX);
 constinit hydrv::GPIO::GPIOLow tx_pin2(hydrv::GPIO::GPIOLow::GPIOD_port, 5,
@@ -163,45 +147,43 @@ constinit hydrv::GPIO::GPIOLow tx_pin2(hydrv::GPIO::GPIOLow::GPIOD_port, 5,
 constinit hydrv::UART::UART<255, 255>
     uart2(hydrv::UART::UARTLow::USART2_115200_LOW, rx_pin2, tx_pin2, 7);
 
+// LOG
+char log_format[] = "[%s] [%l] %m\n\r";
+constinit hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>>
+    distributor(log_format, uart2);
+constinit hydrolib::logger::Logger<
+    hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>>>
+    logger("SerialProtocol", 1, distributor);
 
-    char log_format[] = "[%s] [%l] %m\n\r";
-
-constinit hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>> distributor(log_format, uart2);
-
-constinit hydrolib::logger::Logger<hydrolib::logger::LogDistributor<hydrv::UART::UART<255, 255>>> logger("SerialProtocol", 1, distributor);
-
+// Stream
 hydrolib::bus::datalink::StreamManager manager(1, uart1, logger);
-
 hydrolib::bus::datalink::Stream stream(manager, 2);
 
 Memory memory;
 
 hydrolib::bus::application::Slave slave(stream, memory, logger);
-
 hydrolib::bus::application::Master master(stream, logger);
 
-void getCommmands(void){
+void getCommmands(void) {
 
-     memory.Read(&pid_target_speed_rpm_conversion, 0 , 10) ;
-    memory.Read(&pwm_targets_conversion, 10 , 4) ;
-       
-       for(int i =0;i<10;i++){
+  memory.Read(&pid_target_speed_rpm_conversion, 0, 10);
+  memory.Read(&pwm_targets_conversion, 10, 4);
 
-        if (pid_target_speed_rpm_conversion[i] >= 100 && pid_target_speed_rpm_conversion[i] <= 200) {
-            int32_t signed_val = (int32_t)pid_target_speed_rpm_conversion[i] - 150;
-            int32_t rpm_int = (signed_val * DSHOT_MAX_RPM) / 50.0f;
-         pid_target_speed_rpms[i] = rpm_int;
-        }
+  for (int i = 0; i < 10; i++) {
+
+    if (pid_target_speed_rpm_conversion[i] >= 100 &&
+        pid_target_speed_rpm_conversion[i] <= 200) {
+      int32_t signed_val = (int32_t)pid_target_speed_rpm_conversion[i] - 150;
+      pid_target_speed_rpms[i] = signed_val * 120;
     }
+  }
 
-    for (int i =1;i<4;i++){
+  for (int i = 1; i < 4; i++) {
 
-        if (pwm_targets_conversion[i] >= 100 && pwm_targets_conversion[i] <= 200) {
-            uint16_t pulse_us = 1000 + ((uint16_t)(pwm_targets_conversion[i] - 100) * 1000 / 100);
-            pwm_targets[i] = pulse_us;
-        }
+    if (pwm_targets_conversion[i] >= 100 && pwm_targets_conversion[i] <= 200) {
+      pwm_targets[i] = (uint16_t)(pwm_targets_conversion[i] * 10);
     }
-  
+  }
 }
 /* USER CODE END PV */
 
@@ -218,73 +200,64 @@ void quick_battery_read(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void adc_start(void) {
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 2);
+void adc_start(void) { HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_buffer, 2); }
+
+void ByteProtocol_TX_SendBatteryData(const BatteryData_t *data) {
+  tx_buffer_bat[0] = data->vbat1_adc & 0xFF;
+  tx_buffer_bat[1] = (data->vbat1_adc >> 8) & 0xFF;
+  tx_buffer_bat[2] = data->vbat2_adc & 0xFF;
+  tx_buffer_bat[3] = (data->vbat2_adc >> 8) & 0xFF;
+  tx_buffer_bat[4] = data->killswitch_state ? 0x01 : 0x00;
+
+  memory.Write(tx_buffer_bat, 14, 5);
 }
 
-
-void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data)
-{
-    tx_buffer_bat[0] =data->vbat1_adc & 0xFF;
-    tx_buffer_bat[1] =(data->vbat1_adc >> 8) & 0xFF;
-    tx_buffer_bat[2] =data-> vbat2_adc & 0xFF;
-    tx_buffer_bat[3] =(data->vbat2_adc >> 8) & 0xFF;
-    tx_buffer_bat[4] =data->killswitch_state ? 0x01 : 0x00;
-
-   master.Write(tx_buffer_bat, 14, 5);
+void quick_battery_read(void) {
+  battery_data.vbat1_adc = adc_buffer[0];
+  battery_data.vbat2_adc = adc_buffer[1];
 }
 
-void quick_battery_read(void){
-	battery_data.vbat1_adc = adc_buffer[0];
-	battery_data.vbat2_adc = adc_buffer[1]; 
-}
+void calibration(void) {
+  for (int i = 0; i < MOTORS_COUNT; i++) {
+    pid_target_speed_rpms[i] = 0.0f;
+  }
 
-void send_battery_data(void) {
-    ByteProtocol_TX_SendBatteryData(&battery_data);
-}
+  for (int i = 0; i < MOTORS_COUNT; i++) {
+    motor_values[i] = prepare_Dshot_package(0, false);
+  }
 
+  uint32_t calibration_start_time = HAL_GetTick();
+  while (HAL_GetTick() - calibration_start_time < 2000) {
+    update_motors_Tx_Only();
+    for (volatile int i = 0; i < 100; i++)
+      ;
+  }
 
-void calibration(void){
-    for (int i = 0; i < MOTORS_COUNT; i++) {
-        pid_target_speed_rpms[i] = value;
-    }
+  for (int i = 0; i < MOTORS_COUNT; i++) {
+    motor_values[i] = prepare_Dshot_package(10, false);
+  }
 
-    for (int i = 0; i < MOTORS_COUNT; i++) {
-        motor_values[i] = prepare_Dshot_package(0, false);
-    }
+  for (int t = 0; t < 6; t++) {
+    update_motors_Tx_Only();
+  }
 
-    uint32_t calibration_start_time = HAL_GetTick();
-    while (HAL_GetTick() - calibration_start_time < 2000) {
-        update_motors_Tx_Only();
-        for (volatile int i = 0; i < 100; i++);
-    }
+  for (int i = 0; i < MOTORS_COUNT; i++) {
+    motor_values[i] = prepare_Dshot_package(12, false);
+  }
 
-    for (int i = 0; i < MOTORS_COUNT; i++) {
-	    motor_values[i] = prepare_Dshot_package(10, false);
-    }
+  for (int t = 0; t < 6; t++) {
+    update_motors_Tx_Only();
+  }
 
-    for (int t = 0; t < 6; t++){
-        update_motors_Tx_Only();
-    }
-
-    for (int i = 0; i < MOTORS_COUNT; i++) {
-   	    motor_values[i] = prepare_Dshot_package(12, false);
-    }
-
-    for (int t = 0; t < 6; t++){
-        update_motors_Tx_Only();
-    }
-
-    HAL_Delay(40);
+  HAL_Delay(40);
 }
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -311,9 +284,9 @@ int main(void)
   MX_TIM9_Init();
   MX_TIM12_Init();
   MX_ADC1_Init();
-  //MX_USART1_UART_Init();
+  // MX_USART1_UART_Init();
 
-  /* USER CODE BEGIN 2 */ 
+  /* USER CODE BEGIN 2 */
   PWM_Init();
   adc_start();
 
@@ -322,10 +295,11 @@ int main(void)
   pid_reset_all();
   calibration();
 
-     NVIC_SetPriorityGrouping(0);
-    uart1.Init();
-    uart2.Init();
-  
+  NVIC_SetPriorityGrouping(0);
+  uart1.Init();
+  uart2.Init();
+  ok_led.Init();
+  error_led.Init();
 
   uint32_t last_50hz_time = 0;
   uint32_t last_100hz_time = 0;
@@ -334,93 +308,85 @@ int main(void)
 
   uint16_t count = 0;
   uint16_t err = 0;
-
-  GPIOC->MODER |= GPIO_MODER_MODER13_0;
-  GPIOC->MODER |= GPIO_MODER_MODER14_0;
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-   battery_data.killswitch_state =  (GPIOA->IDR & GPIO_PIN_3) ? true : false;
+  while (1) {
+    battery_data.killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
 
-	 if(pinState == 0 && battery_data.killswitch_state ==1 ){
-		 HAL_Delay(200);
-		calibration();
-		 pinState = battery_data.killswitch_state;
-	  }
+    if (pinState == 0 && battery_data.killswitch_state == 1) {
+      HAL_Delay(200);
+      calibration();
+      pinState = battery_data.killswitch_state;
+    }
 
     manager.Process();
     slave.Process();
     master.Process();
 
     getCommmands();
-  
 
-	if(battery_data_ready){
+    if (battery_data_ready) {
 
-         quick_battery_read();
-         battery_data_ready = false;
+      quick_battery_read();
+      battery_data_ready = false;
+    }
 
-	  }
-   
+    if (telemetry_done_flag) {
+      process_telemetry_with_new_method();
 
-	if (telemetry_done_flag) {
-        process_telemetry_with_new_method();
+      for (int m = 0; m < MOTORS_COUNT; m++) {
+        uint32_t current_rpm = 0;
+        uint16_t target_rpm = pid_target_speed_rpms[m];
 
-	    for (int m = 0; m < MOTORS_COUNT; m++) {
-	        uint32_t current_rpm = 0;
-	        float target_rpm = pid_target_speed_rpms[m];
+        if (motor_telemetry_data[m].valid_rpm) {
+          current_rpm = motor_telemetry_data[m].raw_rpm_value;
+        } else {
+          current_rpm = 0;
+        }
 
-	        if (motor_telemetry_data[m].valid_rpm) {
-	            current_rpm = motor_telemetry_data[m].raw_rpm_value;
-	        } else {
-	            current_rpm = 0;
-	        }
+        float dt = 0.005f;
+        uint16_t new_command =
+            pid_calculate_command(m, current_rpm, target_rpm, dt);
+        motor_values[m] = prepare_Dshot_package(new_command, true);
+      }
 
-	        float dt = 0.005f;
-	        uint16_t new_command = pid_calculate_command(m, current_rpm, target_rpm, dt);
-	        motor_values[m] = prepare_Dshot_package(new_command, true);
-	    }
-
-	    update_motors_Tx_Only();
-	    GPIOC->ODR |= GPIO_ODR_OD13;
-	    GPIOC->ODR &= ~GPIO_ODR_OD14;
-        err = 0;
-	} else {
-		if(err > 1000){
-	        GPIOC->ODR &= ~GPIO_ODR_OD13;
-	        GPIOC->ODR |= GPIO_ODR_OD14;
-	    }
-		err++;
-	}
+      update_motors_Tx_Only();
+        ok_led.Set();
+        error_led.Reset();
+      err = 0;
+    } else {
+      if (err > 1000) {
+        ok_led.Reset();
+        error_led.Set();
+      }
+      err++;
+    }
 
     now2 = HAL_GetTick();
 
-	if (now2 - last_50hz_time >= 20) {
-	  	if(count == 0){
-	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_1, 1000); // PE5
-	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, 1000); // PE6
-	  	    count++;
-	  	} else {
-	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_1, pwm_targets[0]); // PE5
-	  	    PWM_SetDuty(&htim9, TIM_CHANNEL_2, pwm_targets[1]); // PE6
-	  	}
-	  	last_50hz_time = now2;
-	}
+    if (now2 - last_50hz_time >= 20) {
+      if (count == 0) {
+        PWM_SetDuty(&htim9, TIM_CHANNEL_1, 1000); // PE5
+        PWM_SetDuty(&htim9, TIM_CHANNEL_2, 1000); // PE6
+        count++;
+      } else {
+        PWM_SetDuty(&htim9, TIM_CHANNEL_1, pwm_targets[0]); // PE5
+        PWM_SetDuty(&htim9, TIM_CHANNEL_2, pwm_targets[1]); // PE6
+      }
+      last_50hz_time = now2;
+    }
 
-	if (now2 - last_100hz_time >= 10) {
-	    PWM_SetDuty(&htim12, TIM_CHANNEL_1, pwm_targets[2]); // PB14
-	    PWM_SetDuty(&htim12, TIM_CHANNEL_2, pwm_targets[3]); // PB15
-	    last_100hz_time = now2;
-	}
+    if (now2 - last_100hz_time >= 10) {
+      PWM_SetDuty(&htim12, TIM_CHANNEL_1, pwm_targets[2]); // PB14
+      PWM_SetDuty(&htim12, TIM_CHANNEL_2, pwm_targets[3]); // PB15
+      last_100hz_time = now2;
+    }
 
-	  
-    if (now2 - last_battery_tx >= 100){  
-         send_battery_data();
-        last_battery_tx = now2;
+    if (now2 - last_battery_tx >= 100) {
+      ByteProtocol_TX_SendBatteryData(&battery_data);
+      last_battery_tx = now2;
     }
 
     /* USER CODE END WHILE */
@@ -431,11 +397,10 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-extern "C" void SystemClock_Config(void)
-{
+ * @brief System Clock Configuration
+ * @retval None
+ */
+extern "C" void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
@@ -450,49 +415,44 @@ extern "C" void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
     Error_Handler();
   }
 }
 
 /* USER CODE BEGIN 4 */
-extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    if (hadc->Instance == ADC1) {
-         battery_data_ready = true;
-    }
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+  if (hadc->Instance == ADC1) {
+    battery_data_ready = true;
+  }
 }
 
-extern "C"
-{
-    void USART2_IRQHandler(void) { uart2.IRQCallback(); }
-    void USART1_IRQHandler(void) { uart1.IRQCallback(); }
+extern "C" {
+void USART2_IRQHandler(void) { uart2.IRQCallback(); }
+void USART1_IRQHandler(void) { uart1.IRQCallback(); }
 }
 
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-extern "C" void Error_Handler(void)
-{
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+extern "C" void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
   __disable_irq();
-  while (1)
-  {
+  while (1) {
   }
   /* USER CODE END Error_Handler_Debug */
 }

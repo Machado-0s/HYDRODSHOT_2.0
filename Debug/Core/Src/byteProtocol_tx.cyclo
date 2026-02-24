@@ -1,2 +1,0 @@
-../Core/Src/byteProtocol_tx.c:17:6:ByteProtocol_TX_Init	1
-../Core/Src/byteProtocol_tx.c:23:6:ByteProtocol_TX_SendBatteryData	2

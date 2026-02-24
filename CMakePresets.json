@@ -6,15 +6,23 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-		    "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+		    "toolchainFile": "${sourceDir}/Drivers/Hydrodrivers/resources/gcc-arm-none-eabi-f4.cmake",
             "cacheVariables": {
+                "CMAKE_C_FLAGS": "-DSTM32F407xx",
+                "CMAKE_CXX_FLAGS": "-DSTM32F407xx",
+                "MCU_FAMILY": "F4",
+                "CMAKE_C_STANDARD": "11",
+                "CMAKE_CXX_STANDARD": "20",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "LOGGER_TYPE": "hydrolib"
             }
         },
         {
             "name": "Debug",
             "inherits": "default",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTING": "OFF"
             }
         },
         {
