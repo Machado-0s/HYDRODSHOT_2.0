@@ -8,6 +8,8 @@ jobs:
       image: seajackal/hydrodrivers:latest
     steps:
       - uses: actions/checkout@v4
-      - run: git submodeule update --init --recursive
+      - run: git submodule update --init --recursive
       - run: cmake --preset DebugF4
       - run: cmake --build ./build
+
+      
