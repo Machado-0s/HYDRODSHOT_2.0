@@ -1,0 +1,22 @@
+!SESSION 2026-02-25 21:42:59.546 -----------------------------------------------
+eclipse.buildId=Version 2.0.0
+java.version=21.0.8
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_ZW
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2026-02-25 21:44:03.188
+!MESSAGE Log4j2 initialized with config file E:\Projects\ГИДРОНАВТИКА\SAUVC_T1_T8\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2026-02-25 21:44:24.841
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY com.st.stm32cube.ide.mpu.remote.serial 1 1 2026-02-25 21:44:25.619
+!MESSAGE Executed PowerShell command powershell.exe -Command "Get-CimInstance -ClassName Win32_SerialPort | Select-Object -ExpandProperty DeviceID":
+
+
+!ENTRY com.st.stm32cube.ide.mpu.remote.serial 1 1 2026-02-25 21:44:25.620
+!MESSAGE port: 
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-02-25 21:47:12.988
+!MESSAGE Indexed '10Dshot' (31 sources, 137 headers) in 4.89 sec: 14,019 declarations; 65,736 references; 1 unresolved inclusions; 92 syntax errors; 240 unresolved names (0.3%)

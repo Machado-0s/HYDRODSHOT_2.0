@@ -1,4 +1,4 @@
-../Core/Src/byteProtocol.c:42:9:Calculate_CRC8	11
-../Core/Src/byteProtocol.c:113:6:ByteProtocol_Init	1
-../Core/Src/byteProtocol.c:123:6:HAL_UARTEx_RxEventCallback	32
-../Core/Src/byteProtocol.c:131:6:HAL_UART_ErrorCallback	3
+../Core/Src/byteProtocol.c:40:9:Calculate_CRC8	11
+../Core/Src/byteProtocol.c:111:6:ByteProtocol_Init	1
+../Core/Src/byteProtocol.c:121:6:HAL_UARTEx_RxEventCallback	32
+../Core/Src/byteProtocol.c:129:6:HAL_UART_ErrorCallback	3

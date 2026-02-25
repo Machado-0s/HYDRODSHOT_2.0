@@ -16,8 +16,6 @@ static volatile uint32_t bytes_received = 0;
 
 
 
-
-
 static uint16_t ring_available(void) {
     if (ring_head >= ring_tail) return ring_head - ring_tail;
     return RING_BUFFER_SIZE - ring_tail + ring_head;
