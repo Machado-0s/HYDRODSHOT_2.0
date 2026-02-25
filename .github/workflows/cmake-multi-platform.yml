@@ -2,9 +2,9 @@ name: Building
 run-name: Building
 on:
   push:
-    branches: [ '*' ]        # запуск на любой ветке
-    tags: [ 'v*' ]           # дополнительно на тегах, начинающихся с v (например, v1.0.0)
-  workflow_dispatch:         # возможность запуска вручную
+    branches: [ '*' ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
 
 jobs:
   Build-F4:
@@ -13,24 +13,31 @@ jobs:
       image: seajackal/hydrodrivers:latest
     steps:
       - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
-      - run: cmake --preset DebugF4
-      - run: cmake --build ./build
-
-      # Шаг 1: определить пути к собранным файлам (зависит от структуры вашего проекта)
-      # Например, если после сборки бинарники лежат в build/ с расширениями .bin и .elf
+      
+      # Добавленный шаг для устранения ошибки безопасности Git
+      - name: Mark workspace as safe for Git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      
+      - name: Update submodules
+        run: git submodule update --init --recursive
+      
+      - name: Configure CMake
+        run: cmake --preset DebugF4
+      
+      - name: Build
+        run: cmake --build ./build
+      
+      # Поиск собранных файлов (пример, адаптируйте под свои пути)
       - name: Find firmware files
         id: find_files
         run: |
-          # Ищем файлы .bin и .elf внутри папки build
           BIN_FILE=$(find build -name "*.bin" | head -n 1)
           ELF_FILE=$(find build -name "*.elf" | head -n 1)
           echo "bin=$BIN_FILE" >> $GITHUB_OUTPUT
           echo "elf=$ELF_FILE" >> $GITHUB_OUTPUT
           echo "Found BIN: $BIN_FILE"
           echo "Found ELF: $ELF_FILE"
-
-      # Шаг 2: загрузить артефакты (доступны для скачивания из summary workflow)
+      
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -39,8 +46,7 @@ jobs:
             ${{ steps.find_files.outputs.bin }}
             ${{ steps.find_files.outputs.elf }}
           if-no-files-found: error
-
-      # Шаг 3: если запуск произошёл по тегу, создать релиз и загрузить файлы
+      
       - name: Create Release and Upload Assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -48,6 +54,6 @@ jobs:
           files: |
             ${{ steps.find_files.outputs.bin }}
             ${{ steps.find_files.outputs.elf }}
-          generate_release_notes: true   # автоматически добавить заметки (можно отключить)
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
