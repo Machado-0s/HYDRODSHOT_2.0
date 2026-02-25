@@ -4,13 +4,9 @@
         {
             "name": "default",
             "hidden": true,
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-		    "toolchainFile": "${sourceDir}/Drivers/Hydrodrivers/resources/gcc-arm-none-eabi-f4.cmake",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "CMAKE_C_FLAGS": "-DSTM32F407xx",
-                "CMAKE_CXX_FLAGS": "-DSTM32F407xx",
-                "MCU_FAMILY": "F4",
                 "CMAKE_C_STANDARD": "11",
                 "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -18,11 +14,43 @@
             }
         },
         {
+            "name": "host",
+            "hidden": true,
+            "inherits": "default"
+        },
+        {
+            "name": "target",
+            "hidden": true,
+            "inherits": "default",
+            "cacheVariables": {
+                "BUILD_TESTING": "OFF"
+            }
+        },
+        {
+            "name": "F4",
+            "inherits": "target",
+            "hidden": true,
+            "toolchainFile": "${sourceDir}/Drivers/Hydrodrivers/resources/gcc-arm-none-eabi-f4.cmake",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "-DSTM32F407xx",
+                "CMAKE_CXX_FLAGS": "-DSTM32F407xx",
+                "MCU_FAMILY": "F4"
+            }
+        },
+        {
             "name": "Debug",
             "inherits": "default",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "BUILD_TESTING": "OFF"
+                "BUILD_TESTS": "OFF",
+                "HYDRV_BUILD_EXAMPLES": "OFF"
+            }
+        },
+        {
+            "name": "RelWithDebInfo",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         },
         {
@@ -30,6 +58,21 @@
             "inherits": "default",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "MinSizeRel",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        },
+        {
+            "name": "DebugF4",
+            "inherits": "F4",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HYDRV_BUILD_EXAMPLES": "OFF"
             }
         }
     ],
@@ -39,8 +82,16 @@
             "configurePreset": "Debug"
         },
         {
+            "name": "RelWithDebInfo",
+            "configurePreset": "RelWithDebInfo"
+        },
+        {
             "name": "Release",
             "configurePreset": "Release"
+        },
+        {
+            "name": "MinSizeRel",
+            "configurePreset": "MinSizeRel"
         }
     ]
 }
