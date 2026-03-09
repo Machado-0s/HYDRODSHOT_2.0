@@ -1,0 +1,68 @@
+01:53:55 **** Incremental Build of configuration Debug for project Test1 ****
+make -j16 all 
+arm-none-eabi-g++ "../Core/myCode/hydrv_time.cpp" -mcpu=cortex-m4 -std=gnu++14 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fno-use-cxa-atexit -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/myCode/hydrv_time.d" -MT"Core/myCode/hydrv_time.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/myCode/hydrv_time.o"
+make: *** No rule to make target '../Core/Src/main.c', needed by 'Core/Src/main.o'.  Stop.
+make: *** Waiting for unfinished jobs....
+In file included from ../Core/myCode/hydrv_clock.hpp:11,
+                 from ../Core/myCode/hydrv_time.cpp:3:
+../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h:9402:33: error: expected unqualified-id before numeric constant
+ 9402 | #define PWR_CR_VOS_Msk         (0x1UL << PWR_CR_VOS_Pos)                        /*!< 0x00004000 */
+      |                                 ^~~~~
+../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h:9403:32: note: in expansion of macro 'PWR_CR_VOS_Msk'
+ 9403 | #define PWR_CR_VOS             PWR_CR_VOS_Msk                                  /*!< VOS bit (Regulator voltage scaling output selection) */
+      |                                ^~~~~~~~~~~~~~
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:69:46: note: in expansion of macro 'PWR_CR_VOS'
+   69 | #define PWR_REGULATOR_VOLTAGE_SCALE1         PWR_CR_VOS             /* Scale 1 mode(default value at reset): the maximum value of fHCLK = 168 MHz. */
+      |                                              ^~~~~~~~~~
+../Core/myCode/hydrv_clock.hpp:87:31: note: in expansion of macro 'PWR_REGULATOR_VOLTAGE_SCALE1'
+   87 |     static constexpr uint32_t PWR_REGULATOR_VOLTAGE_SCALE1 = PWR_CR_VOS;
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h:9402:33: error: expected ')' before numeric constant
+ 9402 | #define PWR_CR_VOS_Msk         (0x1UL << PWR_CR_VOS_Pos)                        /*!< 0x00004000 */
+      |                                ~^~~~~
+../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h:9403:32: note: in expansion of macro 'PWR_CR_VOS_Msk'
+ 9403 | #define PWR_CR_VOS             PWR_CR_VOS_Msk                                  /*!< VOS bit (Regulator voltage scaling output selection) */
+      |                                ^~~~~~~~~~~~~~
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:69:46: note: in expansion of macro 'PWR_CR_VOS'
+   69 | #define PWR_REGULATOR_VOLTAGE_SCALE1         PWR_CR_VOS             /* Scale 1 mode(default value at reset): the maximum value of fHCLK = 168 MHz. */
+      |                                              ^~~~~~~~~~
+../Core/myCode/hydrv_clock.hpp:87:31: note: in expansion of macro 'PWR_REGULATOR_VOLTAGE_SCALE1'
+   87 |     static constexpr uint32_t PWR_REGULATOR_VOLTAGE_SCALE1 = PWR_CR_VOS;
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h:275,
+                 from ../Core/Inc/stm32f4xx_hal_conf.h:383,
+                 from ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:29,
+                 from ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:287,
+                 from ../Core/myCode/hydrv_clock.hpp:12:
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:70:46: error: expected unqualified-id before numeric constant
+   70 | #define PWR_REGULATOR_VOLTAGE_SCALE2         0x00000000U            /* Scale 2 mode: the maximum value of fHCLK = 144 MHz. */
+      |                                              ^~~~~~~~~~~
+../Core/myCode/hydrv_clock.hpp:88:31: note: in expansion of macro 'PWR_REGULATOR_VOLTAGE_SCALE2'
+   88 |     static constexpr uint32_t PWR_REGULATOR_VOLTAGE_SCALE2 = 0;
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/myCode/hydrv_clock.hpp:93:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   93 |     static inline unsigned systick_counter_ = 0;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:94:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   94 |     static inline bool default_tick_failed_ = false;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:95:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   95 |     static inline bool hsi_failed_ = false;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:96:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   96 |     static inline bool hse_failed_ = false;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:97:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   97 |     static inline bool pll_failed_ = false;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:98:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   98 |     static inline bool sys_tick_failed_ = false;
+      |            ^~~~~~
+../Core/myCode/hydrv_clock.hpp:99:12: warning: inline variables are only available with '-std=c++17' or '-std=gnu++17' [-Wc++17-extensions]
+   99 |     static inline int system_clock_mhz_ = 0;
+      |            ^~~~~~
+make: *** [Core/myCode/subdir.mk:19: Core/myCode/hydrv_time.o] Error 1
+"make -j16 all" terminated with exit code 2. Build might be incomplete.
+
+01:53:55 Build Failed. 6 errors, 7 warnings. (took 511ms)
+

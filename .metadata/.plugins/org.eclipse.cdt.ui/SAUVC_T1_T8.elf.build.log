@@ -1,0 +1,8 @@
+14:29:47 **** Incremental Build of configuration cortex-m-debug for project SAUVC_T1_T8.elf ****
+make all 
+Error: Cannot find the specified linker script. Check the linker settings in the build configuration.
+make: *** [makefile:85: fail-specified-linker-script-missing] Error 2
+"make all" terminated with exit code 2. Build might be incomplete.
+
+14:29:47 Build Failed. 2 errors, 0 warnings. (took 414ms)
+

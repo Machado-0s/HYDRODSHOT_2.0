@@ -52,7 +52,6 @@ hydrolib::ReturnCode Master<TxRxStream, Logger>::Process() {
   }
 
   if (std::chrono::steady_clock::now() - last_request_time_ > kRequestTimeout) {
-    LOG_ERROR(logger_, "Request timeout");
     write(stream_, &tx_buffer_, sizeof(MemoryAccessHeader));
     last_request_time_ = std::chrono::steady_clock::now();
     return hydrolib::ReturnCode::TIMEOUT;
@@ -77,7 +76,6 @@ hydrolib::ReturnCode Master<TxRxStream, Logger>::Process() {
     case Command::READ:
     case Command::WRITE:
     default:
-      LOG_WARNING(logger_, "Wrong command");
       return hydrolib::ReturnCode::ERROR;
   }
 }

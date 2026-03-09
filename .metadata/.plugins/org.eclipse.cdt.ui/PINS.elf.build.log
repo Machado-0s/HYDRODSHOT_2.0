@@ -1,0 +1,8 @@
+22:57:31 **** Build of configuration cortex-m-debug for project PINS.elf ****
+make all 
+Error: Cannot find the specified linker script. Check the linker settings in the build configuration.
+make: *** [makefile:85: fail-specified-linker-script-missing] Error 2
+"make all" terminated with exit code 2. Build might be incomplete.
+
+22:57:32 Build Failed. 2 errors, 0 warnings. (took 280ms)
+

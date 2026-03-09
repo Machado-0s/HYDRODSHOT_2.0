@@ -97,7 +97,6 @@ void StreamManager<RxTxStream, Logger, MATES_COUNT>::Process() {
         auto push_result =
             streams_[i]->buffer_.Push(message_data, message_length);
         if (push_result != ReturnCode::OK) {
-          LOG_ERROR(logger_, "Stream overflow");
         }
         break;
       }

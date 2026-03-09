@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <algorithm> 
 
 #include "hydrolib_bus_datalink_message.hpp"
 #include "hydrolib_crc.hpp"
@@ -9,6 +10,7 @@
 #include "hydrolib_stream_concepts.hpp"
 
 namespace hydrolib::bus::datalink {
+
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 class Deserializer {
  public:
@@ -34,7 +36,6 @@ class Deserializer {
  private:
   ReturnCode FindHeader_();
   ReturnCode ParseHeader_();
-
   bool CheckCRC_();
 
   const AddressType self_address_;
@@ -63,169 +64,201 @@ constexpr Deserializer<RxStream, Logger>::Deserializer(AddressType address,
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 ReturnCode Deserializer<RxStream, Logger>::Process() {
-  while (true)  // TODO(vscode): bad practice
-  {
-    if (current_processed_length_ == 0) {
-      ReturnCode res = FindHeader_();
-      if (res != ReturnCode::OK) {
-        return res;
-      }
-    }
+    constexpr int kMaxBytesScannedPerCall = 64;
 
-    if (current_processed_length_ < sizeof(MessageHeader)) {
-      ReturnCode res = ParseHeader_();
-      if (res == ReturnCode::FAIL) {
-        continue;
-      }
-      if (res != ReturnCode::OK) {
-        return res;
-      }
-    }
+    int bytes_scanned_this_call = 0;
 
-    current_processed_length_ +=
-        read(rx_stream_,
-             &current_rx_buffer_->data_and_crc[(current_processed_length_ -
-                                                sizeof(MessageHeader))],
-             current_header_->length - current_processed_length_);
+    while (bytes_scanned_this_call < kMaxBytesScannedPerCall) {
+        if (current_processed_length_ == 0) {
+            ReturnCode res = FindHeader_();
+            if (res == ReturnCode::NO_DATA) {
+                break;
+            }
+            if (res != ReturnCode::OK) {
+                return res;
+            }
+            bytes_scanned_this_call += 1;
+        }
 
-    if (current_processed_length_ != current_header_->length) {
-      return ReturnCode::NO_DATA;
-    }
+        if (current_processed_length_ < sizeof(MessageHeader)) {
+            ReturnCode res = ParseHeader_();
+            if (res == ReturnCode::FAIL) {
+                current_processed_length_ = 0;
+                bytes_scanned_this_call += sizeof(MessageHeader);
+                continue;
+            }
+            if (res != ReturnCode::OK) {
+                break;
+            }
+        }
 
-    ReturnCode res =
-        COBSDecoding(kMagicByte, &current_rx_buffer_->header.cobs_length,
-                     current_header_->length - sizeof(MessageHeader) +
-                         sizeof(MessageHeader::cobs_length));
+        if (current_header_->length < sizeof(MessageHeader) + kCRCLength ||
+            current_header_->length > sizeof(MessageBuffer)) {
+            lost_bytes_ += current_processed_length_;
+            current_processed_length_ = 0;
+            continue;
+        }
 
-    if (res == ReturnCode::OK) {
-      if (CheckCRC_()) {
-        auto *temp = current_rx_buffer_;
-        current_rx_buffer_ = next_rx_buffer_;
-        next_rx_buffer_ = temp;
-        current_header_ = &current_rx_buffer_->header;
-        message_ready_ = true;
+        int wanted = current_header_->length - current_processed_length_;
+        int got = read(rx_stream_,
+                       &current_rx_buffer_->data_and_crc[current_processed_length_ - sizeof(MessageHeader)],
+                       wanted);
+
+        if (got <= 0) {
+            if (got < 0) return ReturnCode::ERROR;
+            break;
+        }
+
+        current_processed_length_ += got;
+        bytes_scanned_this_call += got;
+
+        if (current_processed_length_ < current_header_->length) {
+            break;
+        }
+
+        unsigned decode_len = current_header_->length - sizeof(MessageHeader) +
+                              sizeof(MessageHeader::cobs_length);
+
+        ReturnCode res = COBSDecoding(kMagicByte,
+                                      &current_rx_buffer_->header.cobs_length,
+                                      decode_len);
+
+        if (res == ReturnCode::OK && CheckCRC_()) {
+            // Success: swap double buffers
+            auto *temp = current_rx_buffer_;
+            current_rx_buffer_ = next_rx_buffer_;
+            next_rx_buffer_ = temp;
+            current_header_ = &current_rx_buffer_->header;
+            message_ready_ = true;
+            current_processed_length_ = 0;
+            return ReturnCode::OK;
+        }
+
+        lost_bytes_ += current_processed_length_;
         current_processed_length_ = 0;
-        return ReturnCode::OK;
-      }
-      lost_bytes_ += current_processed_length_;
-      current_processed_length_ = 0;
-
-    } else {
-      lost_bytes_ += current_processed_length_;
-      LOG_WARNING(logger_, "COBS error, lost {} bytes",
-          current_processed_length_);
-      current_processed_length_ = 0;
     }
-  }
+
+    return message_ready_ ? ReturnCode::OK : ReturnCode::NO_DATA;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 AddressType Deserializer<RxStream, Logger>::GetSourceAddress() const {
-  if (message_ready_) {
-    return next_rx_buffer_->header.src_address;
-  }
-  return 0;
+    if (message_ready_) {
+        return current_rx_buffer_->header.src_address;  // FIXED: current, not next
+    }
+    return 0;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 const uint8_t *Deserializer<RxStream, Logger>::GetData() {
-  if (message_ready_) {
-    message_ready_ = false;
-    return static_cast<uint8_t *>(next_rx_buffer_->data_and_crc);
-  }
-  return nullptr;
+    if (message_ready_) {
+        message_ready_ = false;
+        return static_cast<const uint8_t *>(current_rx_buffer_->data_and_crc);  // FIXED: current, not next
+    }
+    return nullptr;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 unsigned Deserializer<RxStream, Logger>::GetDataLength() const {
-  if (message_ready_) {
-    return next_rx_buffer_->header.length - sizeof(MessageHeader) - kCRCLength;
-  }
-  return 0;
+    if (message_ready_) {
+        return current_rx_buffer_->header.length - sizeof(MessageHeader) - kCRCLength;  // FIXED: current, not next
+    }
+    return 0;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 int Deserializer<RxStream, Logger>::GetLostBytes() const {
-  return lost_bytes_;
+    return lost_bytes_;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 ReturnCode Deserializer<RxStream, Logger>::COBSDecoding(uint8_t magic_byte,
                                                         uint8_t *data,
                                                         unsigned data_length) {
-  unsigned current_appearance = data[0];
-  if (current_appearance == 0) {
-    return ReturnCode::OK;
-  }
-  data[0] = 0;
-  while (data[current_appearance] != 0) {
-    unsigned next_appearance = current_appearance + data[current_appearance];
-    data[current_appearance] = magic_byte;
-    current_appearance = next_appearance;
-    if (current_appearance > data_length) {
-      return ReturnCode::ERROR;
+    if (data_length == 0 || data_length > kMaxDataLength + kCRCLength + 16) {
+        return ReturnCode::ERROR;
     }
-  }
-  data[current_appearance] = magic_byte;
-  return ReturnCode::OK;
+
+    unsigned pos = data[0];
+    if (pos == 0) {
+        return ReturnCode::OK;
+    }
+
+    data[0] = 0;
+
+    if (pos >= data_length) {
+        return ReturnCode::ERROR;
+    }
+
+    while (true) {
+        uint8_t delta = data[pos];
+        if (delta == 0) {
+            break;
+        }
+
+        unsigned next_pos = pos + delta;
+
+        data[pos] = magic_byte;
+
+        pos = next_pos;
+
+        if (pos >= data_length) {
+            return ReturnCode::ERROR;
+        }
+    }
+
+    data[pos] = magic_byte;
+
+    return ReturnCode::OK;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 ReturnCode Deserializer<RxStream, Logger>::FindHeader_() {
-  int res = read(rx_stream_, current_rx_buffer_, sizeof(kMagicByte));
-  while (res != 0) {
-    if (res < 0) {
-      return ReturnCode::ERROR;
-    }
-    if (current_rx_buffer_->header.magic_byte == kMagicByte) {
-      current_processed_length_ = sizeof(kMagicByte);
-      return ReturnCode::OK;
-    }
-    lost_bytes_ += sizeof(kMagicByte);
-    LOG_WARNING(logger_, "Rubbish byte");
+    int res = read(rx_stream_, current_rx_buffer_, sizeof(kMagicByte));
+    while (res != 0) {
+        if (res < 0) {
+            return ReturnCode::ERROR;
+        }
+        if (current_rx_buffer_->header.magic_byte == kMagicByte) {
+            current_processed_length_ = sizeof(kMagicByte);
+            return ReturnCode::OK;
+        }
+        lost_bytes_ += sizeof(kMagicByte);
 
-    res = read(rx_stream_, current_rx_buffer_, sizeof(kMagicByte));
-  }
-  return ReturnCode::NO_DATA;
+        res = read(rx_stream_, current_rx_buffer_, sizeof(kMagicByte));
+    }
+    return ReturnCode::NO_DATA;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 ReturnCode Deserializer<RxStream, Logger>::ParseHeader_() {
-  int res =
-      read(rx_stream_,
-           reinterpret_cast<uint8_t *>(&current_rx_buffer_->header) +  // NOLINT
-               current_processed_length_,
-           sizeof(MessageHeader) - current_processed_length_);
-  if (res < 0) {
-    return ReturnCode::ERROR;
-  }
-  current_processed_length_ += res;
-  if (current_processed_length_ != sizeof(MessageHeader)) {
-    return ReturnCode::NO_DATA;
-  }
-  if (current_header_->dest_address != self_address_) {
-    current_processed_length_ = 0;
-    return ReturnCode::FAIL;
-  }
-  return ReturnCode::OK;
+    int res = read(rx_stream_,
+                   reinterpret_cast<uint8_t *>(&current_rx_buffer_->header) +
+                       current_processed_length_,
+                   sizeof(MessageHeader) - current_processed_length_);
+    if (res < 0) {
+        return ReturnCode::ERROR;
+    }
+    current_processed_length_ += res;
+    if (current_processed_length_ != sizeof(MessageHeader)) {
+        return ReturnCode::NO_DATA;
+    }
+    if (current_header_->dest_address != self_address_) {
+        current_processed_length_ = 0;
+        return ReturnCode::FAIL;
+    }
+    return ReturnCode::OK;
 }
 
 template <concepts::stream::ByteReadableStreamConcept RxStream, typename Logger>
 bool Deserializer<RxStream, Logger>::CheckCRC_() {
-  uint8_t target_crc =
-      crc::CountCRC8(reinterpret_cast<uint8_t *>(current_rx_buffer_),
-                     current_header_->length - kCRCLength);
+    uint8_t target_crc = crc::CountCRC8(reinterpret_cast<uint8_t *>(current_rx_buffer_),
+                                        current_header_->length - kCRCLength);
 
-  uint8_t current_crc =
-      current_rx_buffer_->data_and_crc[current_header_->length -
-                                       sizeof(MessageHeader) - kCRCLength];
+    uint8_t current_crc = current_rx_buffer_->data_and_crc[current_header_->length -
+                                                           sizeof(MessageHeader) - kCRCLength];
 
-  if (target_crc != current_crc) {
-    LOG_WARNING(logger_, "Wrong CRC: expected {}, got {}",
-        target_crc, current_crc);
-    return false;
-  }
-  return true;
+    return target_crc == current_crc;
 }
 
 }  // namespace hydrolib::bus::datalink

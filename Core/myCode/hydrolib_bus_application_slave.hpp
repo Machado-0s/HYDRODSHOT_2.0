@@ -61,15 +61,11 @@ void Slave<Memory, Logger, TxRxStream>::Process() {
           memory_.Read(tx_buffer_.data, rx_buffer_.header.info.address,
                        rx_buffer_.header.info.length);
       if (res == ReturnCode::OK) {
-        LOG_INFO(logger_, "Transmitting {} bytes from {}",
-                 rx_buffer_.header.info.length, rx_buffer_.header.info.address);
         tx_buffer_.command = Command::RESPONSE;
         write(stream_, &tx_buffer_,
               sizeof(Command) + rx_buffer_.header.info.length);
       } else {
-        LOG_WARNING(logger_, "Can't read {} bytes from {}",
-                    rx_buffer_.header.info.length,
-                    rx_buffer_.header.info.address);
+        
         tx_buffer_.command = Command::ERROR;
       }
       break;
@@ -79,20 +75,14 @@ void Slave<Memory, Logger, TxRxStream>::Process() {
           memory_.Write(rx_buffer_.data, rx_buffer_.header.info.address,
                         rx_buffer_.header.info.length);
       if (res != ReturnCode::OK) {
-        LOG_WARNING(logger_, "Can't write {} bytes to {}",
-                    rx_buffer_.header.info.length,
-                    rx_buffer_.header.info.address);
         tx_buffer_.command = Command::ERROR;
         write(stream_, &tx_buffer_, sizeof(Command));
-      } else {
-        LOG_INFO(logger_, "Wrote {} bytes to {}", rx_buffer_.header.info.length,
-                 rx_buffer_.header.info.address);
-      }
+      } 
+      
     } break;
     case Command::ERROR:
     case Command::RESPONSE:
     default:
-      LOG_WARNING(logger_, "Wrong command");
       tx_buffer_.command = Command::ERROR;
       write(stream_, &tx_buffer_, sizeof(Command));
       break;
