@@ -1,49 +1,38 @@
-2026-03-08 10:44:04,512 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:44:07,106 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:44:40,812 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:44:42,828 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:44:44,832 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:46:06,447 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:46:08,450 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 10:46:10,453 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 12:24:02,591 [ERROR] ConfigurationRetriever:142 - IOException on connection: Connect timed out
-2026-03-08 12:24:04,593 [ERROR] ConfigurationRetriever:142 - IOException on connection: Connect timed out
-2026-03-08 12:24:06,595 [ERROR] ConfigurationRetriever:142 - IOException on connection: Connect timed out
-2026-03-08 12:25:09,983 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:25:09,984 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:25:09,984 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:25:35,256 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:25:35,258 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:25:35,259 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
-2026-03-08 12:31:47,359 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:44:23,915 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:44:25,922 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:44:27,926 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:51:11,872 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:51:13,875 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:51:15,888 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:55:21,101 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:55:23,106 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 14:55:25,109 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 15:50:46,596 [ERROR] ConfigurationRetriever:142 - IOException on connection: Connect timed out
-2026-03-08 17:42:18,389 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 17:42:20,392 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 17:42:22,397 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 18:14:55,426 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 20:17:20,320 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:08:40,103 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:08:42,116 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:08:44,119 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:13:40,690 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:17:22,161 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:17:24,163 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:17:26,166 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:32:33,446 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:32:35,448 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:32:37,451 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:39:03,100 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:39:05,104 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:39:07,107 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:42:48,793 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:42:50,797 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
-2026-03-08 23:42:52,800 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:02:49,791 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:02:51,803 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:02:53,806 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:06:16,502 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:06:18,506 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:06:20,510 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:12:27,880 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:12:29,883 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:12:31,897 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:36:53,113 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:36:55,118 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:36:57,121 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:40:01,714 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:40:03,718 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 00:40:05,721 [ERROR] ConfigurationRetriever:142 - IOException on connection: Read timed out
+2026-04-19 13:59:16,894 [INFO] Activator:176 - 
+
+
+2026-04-19 13:59:16,896 [INFO] Activator:177 - !SESSION log4j initialized
+2026-04-19 13:59:23,435 [INFO] LogOutputStream:77 - [STDOUT_REDIRECT] 
+2026-04-19 13:59:23,810 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 13:59:23,811 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 13:59:23,812 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:00:05,336 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:00:05,337 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:00:05,338 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:01:54,137 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:01:54,139 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:01:54,140 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:03:17,520 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:03:17,522 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:03:17,523 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:14:54,408 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:14:54,409 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:14:54,409 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:15:10,302 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:15:10,304 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com
+2026-04-19 14:15:10,305 [ERROR] ConfigurationRetriever:142 - IOException on connection: sw-center.st.com

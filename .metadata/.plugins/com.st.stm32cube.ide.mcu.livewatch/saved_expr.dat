@@ -1,4 +1,4 @@
-memory
-stream
-pid_target_speed_rpms
-pwm_targets
+tx_buffer_bat
+battery_data
+adc_buffer[0]
+adc_buffer[1]

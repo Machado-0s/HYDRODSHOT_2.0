@@ -60,6 +60,7 @@ extern "C" {
 /* USER CODE BEGIN PV */
 extern "C" {
 extern UART_HandleTypeDef huart1;
+extern ADC_HandleTypeDef hadc1;
 }
 #define BUFFER_LENGTH 20
 #define DSHOT_MAX_RPM 6000
@@ -77,7 +78,6 @@ uint8_t pid_target_speed_rpm_conversion[MOTORS_COUNT] = {0};
 uint8_t pwm_targets_conversion[4] = {150, 150, 150, 150};
 
 uint8_t pinState = 0;
-uint16_t adc_buffer[2];
 volatile bool battery_data_ready = false;
 BatteryData_t battery_data;
 
@@ -147,16 +147,34 @@ void getCommmands(void){
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-extern "C" { void SystemClock_Config(void); }
-void adc_start(void);
+extern "C" {
+     void SystemClock_Config(void); 
+     void adc_start(void);
+}
+
 void calibration(void);
-void quick_battery_read(void);
+
 
 /* Private user code ---------------------------------------------------------*/
-void adc_start(void) { HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 2); }
 
+void read_battery_polling(void) {
+    HAL_ADC_Start(&hadc1);                    
+
+    
+    if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {  
+        battery_data.vbat1_adc = HAL_ADC_GetValue(&hadc1);
+    }
+
+    if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+        battery_data.vbat2_adc = HAL_ADC_GetValue(&hadc1);
+    }
+
+    HAL_ADC_Stop(&hadc1);  
+}
+
+uint8_t tx_buffer_bat[5];
 void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data) {
-    uint8_t tx_buffer_bat[5];
+    
     tx_buffer_bat[0] = data->vbat1_adc & 0xFF;
     tx_buffer_bat[1] = (data->vbat1_adc >> 8) & 0xFF;
     tx_buffer_bat[2] = data->vbat2_adc & 0xFF;
@@ -165,10 +183,6 @@ void ByteProtocol_TX_SendBatteryData(const BatteryData_t* data) {
     memory.Write(tx_buffer_bat, 14, 5);
 }
 
-void quick_battery_read(void) {
-    battery_data.vbat1_adc = adc_buffer[0];
-    battery_data.vbat2_adc = adc_buffer[1]; 
-}
 
 void calibration(void) {
     for (int i = 0; i < MOTORS_COUNT; i++) { pid_target_speed_rpms[i] = value; }
@@ -198,11 +212,11 @@ int main(void) {
   MX_USART1_UART_Init();
 
   PWM_Init();
-  adc_start();
   setup_Dshot_Tx_Only();
   preset_bb_Dshot_buffers();
   pid_reset_all();
   calibration();
+  
 
   NVIC_SetPriorityGrouping(0);
   uart1.Init();
@@ -221,6 +235,7 @@ int main(void) {
     battery_data.killswitch_state = (GPIOA->IDR & GPIO_PIN_3) ? true : false;
     if(pinState == 0 && battery_data.killswitch_state == 1) {
         HAL_Delay(200);
+        pid_reset_all();
         calibration();
         pinState = battery_data.killswitch_state;
     }
@@ -229,12 +244,16 @@ int main(void) {
     slave.Process();
     master.Process();
     getCommmands();
+
+    uint32_t now = HAL_GetTick();
+
+if (now - last_battery_tx >= 100) {  
+    read_battery_polling();                                       
+    ByteProtocol_TX_SendBatteryData(&battery_data);
+    last_battery_tx = now;
+}
   
 
-    if(battery_data_ready) {
-         quick_battery_read();
-         battery_data_ready = false;
-    }
 
     if (telemetry_done_flag) {
         process_telemetry_with_new_method();
@@ -275,10 +294,7 @@ int main(void) {
         last_100hz_time = now2;
     }
 
-    if (now2 - last_battery_tx >= 100) {  
-         ByteProtocol_TX_SendBatteryData(&battery_data);
-         last_battery_tx = now2;
-    }
+  
   }
 }
 
@@ -302,10 +318,6 @@ extern "C" void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
-}
-
-extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    if (hadc->Instance == ADC1) { battery_data_ready = true; }
 }
 
 extern "C"

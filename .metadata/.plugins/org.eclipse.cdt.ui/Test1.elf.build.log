@@ -1,8 +1,8 @@
-10:43:35 **** Build of configuration cortex-m-debug for project Test1.elf ****
+18:26:12 **** Build of configuration cortex-m-debug for project Test1.elf ****
 make all 
 Error: Cannot find the specified linker script. Check the linker settings in the build configuration.
 make: *** [makefile:85: fail-specified-linker-script-missing] Error 2
 "make all" terminated with exit code 2. Build might be incomplete.
 
-10:43:36 Build Failed. 2 errors, 0 warnings. (took 361ms)
+18:26:13 Build Failed. 2 errors, 0 warnings. (took 447ms)
 

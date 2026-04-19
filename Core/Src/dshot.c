@@ -430,11 +430,6 @@ void pid_reset_motor(uint8_t motor_index)
 
 
 
-uint32_t counter =0;
-#define DEBUG_PRINT_MOTOR 1
-#define DEBUG_CYCLE_DIVIDER 300  // adjust for 2000 Hz loop -> ~10 Hz debug
-
-
 uint16_t pid_calculate_command(uint8_t motor_index,
                                uint32_t current_rpm_unsigned,
                                float target_rpm_signed,
@@ -499,6 +494,7 @@ uint16_t pid_calculate_command(uint8_t motor_index,
     const float DSHOT_NEUTRAL = 1048.0f; // Minimum DShot value for forward thrust
     const float DSHOT_MIN = 48.0f;       // Minimum DShot value for reverse thrust/idle
     const float DSHOT_MAX = 2047.0f;
+    const float DSHOT_MAX_REV = 1046.5f;
 
     float dshot_f = 0;
 
@@ -523,28 +519,17 @@ uint16_t pid_calculate_command(uint8_t motor_index,
     } else if (count == 2) {
 
         if(dshot_f < DSHOT_MIN) dshot_f = DSHOT_MIN;
+        if(dshot_f > DSHOT_MAX_REV) dshot_f = DSHOT_MAX_REV;
     }
 
 
     if(dshot_f > DSHOT_MAX) dshot_f = DSHOT_MAX;
+   
 
 
     uint16_t dshot_command = (uint16_t)(dshot_f + 0.5f);
     pid_states[motor_index].last_dshot_command = dshot_command;
 
-    // --- Debug ---
-    static uint16_t debug_counter = 0;
-    if(motor_index == DEBUG_PRINT_MOTOR) {
-        debug_counter++;
-        if(debug_counter >= DEBUG_CYCLE_DIVIDER) {
-            pid_debug.motor_index = motor_index;
-            pid_debug.error = error;
-            pid_debug.target = target_rpm;
-            pid_debug.output = dshot_command;
-            pid_debug.pending = 1;
-            debug_counter = 0;
-        }
-    }
-
+  
     return dshot_command;
 }
